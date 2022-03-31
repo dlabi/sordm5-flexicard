@@ -1,4 +1,4 @@
-#define _VER_ 1.1
+#define _VER_ 1.2
 
 #include "main.h"
 
@@ -205,7 +205,7 @@ EXTI4_IRQHandler:
         ldr     r12,=GPIOA_BASE
         // assume enter on rising edge
 #ifdef DEBUG_EXTI4
-        movs    r0,#1                                  //PA0 - 0 PA1 - 0
+        movs    r0,#0xc1                                  //PA0 - 0 PA1 - 0
         str     r0,[r12,ODR]
 #endif
 
@@ -213,13 +213,13 @@ EXTI4_IRQHandler:
         ldr     r5,=GPIOB_BASE
 EXTI4_Start_Polling_For_MREQ_LOW:
 3:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        ldr     r4,[r5, IDR]                            // GPIOB->IDR
-        ldr     r0,[r2,IDR]                             // GPIOC->IDR
+        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+        ldr     r0,[r2,IDR]                             // GPIOC->IDR get mreq
         //tst     r0,#_MREQ_MASK                          // check _MREQ
-        tst     r4,#_MRD_MASK                          // check MRD
+        tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
         bne.n   3b
 #ifdef DEBUG_EXTI4
-        movs    r0,#2                                   //PA0 - 0 PA1 - 1
+        movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
         str     r0,[r12,ODR]
 #endif
         //tst     r1,#0x8000                              // check A15. If it is high. We are interested
@@ -228,7 +228,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         bcs.n     end_EXTI4_IRQHandler
 
 #ifdef DEBUG_EXTI4
-        movs    r0,#3
+        movs    r0,#0xc3
         str     r0,[r12,ODR]
 #endif
 
@@ -281,18 +281,17 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 #endif
 
 // _MREQ should have just gone high here
-
         str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
-        //str     r3,[r2, ODR]                    // Set ROMDIS LOW
+
 #ifdef DEBUG_EXTI4
-        movs    r0,#5
+        movs    r0,#0xc5
         str     r0,[r12, ODR]
 #endif
         b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
-        movs    r0,#0                           //PA0 - 1 PA1 - 1
+        movs    r0,#0xc0                           //PA0 - 1 PA1 - 1
         str     r0,[r12, ODR]
 #endif
         ldr     r3,=EXTI

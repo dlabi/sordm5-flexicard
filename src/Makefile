@@ -76,7 +76,9 @@ CFLAGS += -I$(STM_COMMON)/Utilities/STM32F4-Discovery
 CFLAGS += -I$(STM_COMMON)/Libraries/CMSIS/Include 
 CFLAGS += -I$(STM_COMMON)/Libraries/CMSIS/ST/STM32F4xx/Include
 CFLAGS += -I$(STM_COMMON)/Libraries/STM32F4xx_StdPeriph_Driver/inc
-
+# add git hash 
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2> /dev/null || true)
+LDFLAGS := -X version=${GIT_COMMIT} ${LDFLAGS}
 
 # add startup file to build
 SRCS += startup_stm32f4xx.S 

@@ -44,7 +44,7 @@ void blink_pa6_pa7(int n) {
         while(n) {
                 GPIOA->ODR = 0x0040;
                 delay_ms(500);
-                GPIOA->ODR = 0x0080;
+                GPIOA->ODR = 0x0080; 
                 delay_ms(500);
                 n -= 1;
         }
