@@ -29,6 +29,7 @@ STM_COMMON=/mnt/d/_DATA/Sord/stm32f407vet6/STM32F4-Discovery_FW_V1.1.0
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 OBJDUMP=arm-none-eabi-objdump
+HEX2DFU=./hex2dfu
 
 #CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
 CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
@@ -100,6 +101,7 @@ $(PROJ_NAME).elf: $(SRCS)
 	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	$(OBJDUMP) -dS $(PROJ_NAME).elf >$(PROJ_NAME).asm
+	$(HEX2DFU) -i $(PROJ_NAME).hex -o $(PROJ_NAME).dfu -d ${GIT_COMMIT}
 clean:
 	rm -f *.o
 	rm -f $(PROJ_NAME).elf

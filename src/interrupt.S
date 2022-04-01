@@ -1,4 +1,4 @@
-#define _VER_ 1.2
+#define _VER_ 1.3
 
 #include "main.h"
 
@@ -204,7 +204,7 @@ main_thread_data:
 EXTI4_IRQHandler:
         ldr     r12,=GPIOA_BASE
         // assume enter on rising edge
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI41
         movs    r0,#0xc1                                  //PA0 - 0 PA1 - 0
         str     r0,[r12,ODR]
 #endif
@@ -212,13 +212,13 @@ EXTI4_IRQHandler:
         ldr     r2,=GPIOC_BASE
         ldr     r5,=GPIOB_BASE
 EXTI4_Start_Polling_For_MREQ_LOW:
-3:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
+3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
         ldr     r0,[r2,IDR]                             // GPIOC->IDR get mreq
         //tst     r0,#_MREQ_MASK                          // check _MREQ
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
-        bne.n   3b
-#ifdef DEBUG_EXTI4
+        bne.n   3$
+#ifdef DEBUG_EXTI42
         movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
         str     r0,[r12,ODR]
 #endif
@@ -227,7 +227,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 	cmp     r4, #0x5000        
         bcs.n     end_EXTI4_IRQHandler
 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI43
         movs    r0,#0xc3
         str     r0,[r12,ODR]
 #endif
@@ -252,7 +252,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 // Use WFE to wait until _MREQ goes high
         ldr     r3,=EXTI
-        movs    r0,#0
+        //movs    r0,#0
         movs    r1,#EXTI_Line4
         ldr     r0,[r3,IMR]     // EXTI_IMR
         and     r0,#0xffffffef  // turn off  PC4 int
@@ -261,33 +261,33 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r1,[r3,EMR]     // EXTI_EMR - wait for an event rather than an interrupt on PC4
 
         mov     r1,#DATA_IN_MODE
-        movs    r3,#0
-        movs    r0,#3   // set PA0/PA1 high again
+
 	dsb             // not entirely sure if this is required
         sev             // set the event register
         wfe             // clear the event register
+        // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe             // wait for the positive edge of _MREQ
 
 #ifdef DEBUG_SPURIOUS_EVENT_MREQ
         ldr     r0,[r2,IDR]                     // GPIOC->IDR
         tst     r0,#_MREQ_MASK                  // check _MREQ
-        bne.n   8f
+        bne.n   8$
         movs    r0,#0
         str     r0,[r12,ODR]
         nop
         add     r0,#1
         str     r0,[r12,ODR]
-8:
+8$:
 #endif
 
 // _MREQ should have just gone high here
         str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI45
         movs    r0,#0xc5
         str     r0,[r12, ODR]
 #endif
-        b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
+       // b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
@@ -302,8 +302,8 @@ end_EXTI4_IRQHandler:
         movs    r1,#EXTI_Line4
         str     r1,[r3,PR]                      // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
-        ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
-        str     r1,[r0]
+      //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
+      //  str     r1,[r0]
 
         bx      lr
 
