@@ -346,7 +346,7 @@ int __attribute__((optimize("O0")))  main(void) {
 	printf("Semi hosting on\n");
 #endif
 
-	rcc_set_frequency(SYSCLK_200_MHZ);
+	rcc_set_frequency(SYSCLK_240_MHZ);
 	  // switch on compensation cell
 	RCC->APB2ENR |= 0 |  RCC_APB2ENR_SYSCFGEN ;
 	SYSCFG->CMPCR |= SYSCFG_CMPCR_CMP_PD; // enable compensation cell
