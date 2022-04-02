@@ -1,4 +1,4 @@
-#define _VER_ 1.3
+#define _VER_ 1.4
 
 #include "main.h"
 
@@ -222,22 +222,20 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
         str     r0,[r12,ODR]
 #endif
-        //tst     r1,#0x8000                              // check A15. If it is high. We are interested
+        tst     r1,#0x8000                              // check A15. If it is high. We are interested
+        beq.n   end_EXTI4_IRQHandler
+        sub     r4, r1, #0x8000
+ /*       
         sub     r4, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
 	cmp     r4, #0x5000        
         bcs.n     end_EXTI4_IRQHandler
+*/
 
 #ifdef DEBUG_EXTI43
         movs    r0,#0xc3
         str     r0,[r12,ODR]
 #endif
 
-        //beq.n   end_EXTI4_IRQHandler
-	//nop				                // You need at least one NOP here for the delay between _MREQ and _ROMEN
-	//nop
-        //ldr     r0,[r2,IDR]   // GPIOC->IDR             // reread _ROMEN as it goes low marginally after _MREQ
-        //tst     r0,#_ROMEN_MASK                         // check _ROMEN
-        //bne.n   end_EXTI4_IRQHandler
         ldr     r3,=rom_base
         ldrb    r0,[r3,r4]              // get the byte from a 16K ROM
         lsls    r0,r0, #8
