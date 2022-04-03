@@ -10,6 +10,7 @@ GPIO_InitTypeDef  GPIO_InitStructure;
 extern uint32_t *romdis;
 
 extern volatile uint8_t *rom_base;
+extern void init_fpu_regs(void);
 
 
 // Must be volatile to prevent optimiser doing stuff
@@ -31,6 +32,30 @@ char* path;
         fno.lfname = lfn;
             fno.lfsize = sizeof lfn;
 #endif
+
+// Enable the FPU (Cortex-M4 - STM32F4xx and higher)
+// http://infocenter.arm.com/help/topic/com.arm.doc.dui0553a/BEHBJHIG.html
+// Also make sure lazy stacking is disabled
+void enable_fpu_and_disable_lazy_stacking() {
+  __asm volatile
+  (
+    "  ldr.w r0, =0xE000ED88    \n"  /* The FPU enable bits are in the CPACR. */
+    "  ldr r1, [r0]             \n"  /* read CAPCR */
+    "  orr r1, r1, #( 0xf << 20 )\n" /* Set bits 20-23 to enable CP10 and CP11 coprocessors */
+    "  str r1, [r0]              \n" /* Write back the modified value to the CPACR */
+    "  dsb                       \n" /* wait for store to complete */
+    "  isb                       \n" /* reset pipeline now the FPU is enabled */
+    // Disable lazy stacking (the default) and effectively have no stacking since we're not really using the FPU for anything other than a fast register store
+    "  ldr.w r0, =0xE000EF34    \n"  /* The FPU FPCCR. */
+    "  ldr r1, [r0]             \n"  /* read FPCCR */
+    "  bfc r1, #30,#2\n" /* Clear bits 30-31. ASPEN and LSPEN. This disables lazy stacking */
+    "  str r1, [r0]              \n" /* Write back the modified value to the FPCCR */
+    "  dsb                       \n" /* wait for store to complete */
+    "  isb"                          /* reset pipeline  */
+    :::"r0","r1"
+    );
+}
+
 
 void delay_ms(const uint16_t ms)
 {
@@ -345,6 +370,10 @@ int __attribute__((optimize("O0")))  main(void) {
         initialise_monitor_handles();   /*rtt*/
 	printf("Semi hosting on\n");
 #endif
+
+        // You have to disable lazy stacking BEFORE initialising the scratch fpu registers
+	enable_fpu_and_disable_lazy_stacking();
+	init_fpu_regs();
 
 	rcc_set_frequency(SYSCLK_240_MHZ);
 	  // switch on compensation cell

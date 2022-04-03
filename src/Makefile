@@ -32,13 +32,13 @@ OBJDUMP=arm-none-eabi-objdump
 HEX2DFU=./hex2dfu
 
 #CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
-CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
+CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld -ffunction-sections -fdata-sections -fomit-frame-pointer
 CFLAGS += -DUSE_STDPERIPH_DRIVER
-CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork
+CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
-#CFLAGS += --specs=nosys.specs
-CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+CFLAGS += --specs=nosys.specs
+#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1
@@ -50,7 +50,8 @@ CFLAGS += -ffixed-s6
 CFLAGS += -ffixed-s7
 CFLAGS += -ffixed-s8
 CFLAGS += -ffixed-s9
-CFLAGS += -ffixed-s30
+CFLAGS += -ffixed-s10 -ffixed-s11 -ffixed-s12 -ffixed-s13 -ffixed-s14 -ffixed-s15 -ffixed-s16 -ffixed-s17 -ffixed-s18 -ffixed-s19 -ffixed-s20
+CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s26 -ffixed-s27 -ffixed-s28 -ffixed-s29 -ffixed-s30 -ffixed-s31
 
 
 #CFLAGS += -DFDC_CMD_LOGGING

@@ -1,19 +1,67 @@
-#define _VER_ 1.5
+#define _VER_ 1.6
 
 #include "main.h"
 
 	.syntax unified
 	.cpu cortex-m4
-	.fpu softvfp
+//	.fpu softvfp
+        .fpu fpv4-sp-d16
 	.thumb
 
 	.global EXTI1_IRQHandler
 	.global EXTI4_IRQHandler
+        .global	init_fpu_regs
 	.global romdis
 	.global rom_base
 	.global main_thread_command
 	.global main_thread_data
 
+
+/* REGISTERS */
+#define reg_zero	s0
+#define reg_bit0_high	s1
+#define reg_bit1_high	s2
+#define reg_gpioc_base	s3
+#define reg_bit2_high	s4
+
+#define reg_gpioa_base	s5
+#define reg_high_64k_base	s6
+#define reg_exti_base	s7
+#define reg_moder_dataout	s8
+#define reg_moder_datain	s9
+#define reg_rom_base	s10
+#define reg_led_on	s11
+#define reg_gpiob_base	s12
+#define reg_bit6_high	s13
+#define reg_bit4_high	s14
+#define reg_led_off	s15
+
+// NOTE: FPU registers d8 and d9 are used somehow, so you cannot use s16,s17,s18 and s19
+
+#define reg_bit8_high	s22
+#define reg_fake_stack	s30
+
+/* MACROS */
+
+.macro mov32, reg, val
+    movw \reg, #:lower16:\val
+    movt \reg, #:upper16:\val
+.endm
+
+
+.macro databus_read_extra_delay
+	.rept 0
+        	nop
+	.endr
+.endm
+
+.macro clear_EXTI4_FTSR   //falling edge selection register
+	vstr	reg_zero,[r3,FTSR]
+.endm
+
+.macro set_EXTI4_FTSR
+	vstr	reg_bit4_high,[r3,FTSR]
+.endm
 
 
 .section .rodata
@@ -119,6 +167,7 @@ rom_base:
 	.equ	IMR		,	0x00
 	.equ	EMR		,	0x04
 	.equ	RTSR		,	0x08
+        .equ	FTSR		,	0x0c
 	.equ	PR		,	0x14
 
 	.equ	DSK_TRACKINFO_NUMBEROFSECTORS 	, 0x15
@@ -198,19 +247,88 @@ main_thread_data:
 
 .section .text
 
+
+.type init_fpu_regs, %function
+.align 4
+.thumb_func
+init_fpu_regs:
+	movs	r0,#0
+	vmov	reg_zero,r0
+
+	movs	r0,#1
+	vmov	reg_bit0_high,r0
+
+	movs	r0,#2
+	vmov	reg_bit1_high,r0
+
+	mov32	r0,GPIOC_BASE
+	vmov	reg_gpioc_base,r0
+
+	movs	r0,#4
+	vmov	reg_bit2_high,r0
+
+	mov32	r0,GPIOA_BASE
+	vmov	reg_gpioa_base,r0
+
+	//mov32	r0, high_64k_base
+	//vmov	reg_high_64k_base,r0
+
+	mov32	r0, EXTI
+	vmov	reg_exti_base,r0
+
+	mov32	r0,0x55550020
+	vmov	reg_moder_dataout,r0
+
+	mov32	r0,0x00000020
+	vmov	reg_moder_datain,r0
+
+	mov32	r0,GPIOB_BASE
+	vmov	reg_gpiob_base,r0
+
+        movs	r0,#0x10
+	vmov	reg_bit4_high,r0
+
+	movs	r0,#0x40
+	vmov	reg_bit6_high,r0
+
+	movs	r0,#0x100
+	vmov	reg_bit8_high,r0
+
+        mov32	r0,rom_base
+	vmov	reg_gpiob_base,r0
+
+        movs	r0,#0x44
+	vmov	reg_led_on,r0
+
+        movs	r0,#0xc0
+	vmov	reg_led_off,r0
+
+	//mov32	r0,0x10000000
+	//vmov	reg_ccmram_log,r0
+
+	bx	lr
+
+
 // _MREQ Handler. Int on +ve edge
 
 .type EXTI4_IRQHandler, %function
 EXTI4_IRQHandler:
-        ldr     r12,=GPIOA_BASE
+        vmov	r12,reg_gpioa_base
+       //ldr     r12,=GPIOA_BASE
         // assume enter on rising edge
 #ifdef DEBUG_EXTI41
         movs    r0,#0xc1                                  //PA0 - 0 PA1 - 0
         str     r0,[r12,ODR]
 #endif
+        vmov	r2,reg_gpioc_base
+        vmov	r5,reg_gpiob_base
 
-        ldr     r2,=GPIOC_BASE
-        ldr     r5,=GPIOB_BASE
+clear_pending_iorq_int:
+	vmov	r3,reg_exti_base		// s7 = EXTI
+	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+
+        //ldr     r2,=GPIOC_BASE nahrazeno
+        //ldr     r5,=GPIOB_BASE nahrazeno
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
@@ -237,20 +355,27 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         movs    r0,#0xc3
         str     r0,[r12,ODR]
 #endif
-
-        ldr     r3,=rom_base
+        vmov	r3,reg_rom_base
+        //ldr     r3,=rom_base
         ldrb    r0,[r3,r4]              // get the byte from a 16K ROM
         lsls    r0,r0, #8
-        ldr     r1,=DATA_OUT_MODE
+        
+        vmov	r1,reg_moder_dataout
+        //ldr     r1,=DATA_OUT_MODE
         str     r0,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
 #ifdef DEBUG_EXTI4
-        movs    r0,#0x44
-        str     r0,[r12,ODR]
+        //movs    r0,#0x44
+        //str     r0,[r12,ODR]
+        vstr     reg_led_on,[r12,ODR]
 #endif
 
 // Use WFE to wait until _MREQ goes high
+
+        vmov	r3,reg_exti_base
+	set_EXTI4_FTSR
+  /*      
         ldr     r3,=EXTI
         //movs    r0,#0
         movs    r1,#EXTI_Line4
@@ -258,9 +383,13 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         and     r0,#0xffffffef  // turn off  PC4 int
         str     r0,[r3,IMR]     // EXTI_IMR
         str     r1,[r3,PR]      // EXTI_PR  - clear the current PC4 interrupt
-        str     r1,[r3,EMR]     // EXTI_EMR - wait for an event rather than an interrupt on PC4
+        str     r1,[r3,EMR]
+*/
+        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
+             
 
-        mov     r1,#DATA_IN_MODE
+        //mov     r1,#DATA_IN_MODE
+        vmov	r1,reg_moder_datain
 
 	dsb             // not entirely sure if this is required
         sev             // set the event register
@@ -268,17 +397,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe             // wait for the positive edge of _MREQ
 
-#ifdef DEBUG_SPURIOUS_EVENT_MREQ
-        ldr     r0,[r2,IDR]                     // GPIOC->IDR
-        tst     r0,#_MREQ_MASK                  // check _MREQ
-        bne.n   8$
-        movs    r0,#0
-        str     r0,[r12,ODR]
-        nop
-        add     r0,#1
-        str     r0,[r12,ODR]
-8$:
-#endif
+        databus_read_extra_delay
 
 // _MREQ should have just gone high here
         str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
@@ -291,9 +410,14 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
-        movs    r0,#0xc0                           //PA0 - 1 PA1 - 1
-        str     r0,[r12, ODR]
+        //movs    r0,#0xc0                           //PA0 - 1 PA1 - 1
+        //str     r0,[r12, ODR]
+        vstr     reg_led_off,[r12,ODR]
 #endif
+        
+        clear_EXTI4_FTSR
+
+/*
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]     // EXTI_IMR
         orr     r0,#0x0010      // reenable PC4 interrupts
@@ -304,7 +428,8 @@ end_EXTI4_IRQHandler:
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
       //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
       //  str     r1,[r0]
-
+*/
+        dsb
         bx      lr
 
 
