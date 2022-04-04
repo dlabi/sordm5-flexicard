@@ -1,4 +1,4 @@
-#define _VER_ 1.6
+#define _VER_ 1.7
 
 #include "main.h"
 
@@ -340,14 +340,15 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
         str     r0,[r12,ODR]
 #endif
-/*      //0x8000-0xffff
+      //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq.n   end_EXTI4_IRQHandler
         sub     r4, r1, #0x8000
-*/
-    
+
+ /*   
         sub     r4, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
 	cmp     r4, #0x2000                             //#0x5000 pro 0x6fff
+ */       
         bcs.n     end_EXTI4_IRQHandler
 
 
