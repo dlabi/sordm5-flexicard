@@ -1,4 +1,4 @@
-#define _VER_ 1.7
+#define _VER_ 1.8
 
 #include "main.h"
 
@@ -316,9 +316,10 @@ EXTI4_IRQHandler:
         vmov	r12,reg_gpioa_base
        //ldr     r12,=GPIOA_BASE
         // assume enter on rising edge
-#ifdef DEBUG_EXTI41
-        movs    r0,#0xc1                                  //PA0 - 0 PA1 - 0
-        str     r0,[r12,ODR]
+#ifdef DEBUG_EXTI4_START
+        //movs    r0,#0xc1                                  
+        //str     r0,[r12,ODR]
+        vstr     reg_bit0_high,[r12,ODR]
 #endif
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
@@ -398,7 +399,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe             // wait for the positive edge of _MREQ
 
-        databus_read_extra_delay
+        //databus_read_extra_delay
 
 // _MREQ should have just gone high here
         str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
