@@ -1,4 +1,4 @@
-#define _VER_ 1.8
+#define _VER_ 1.9
 
 #include "main.h"
 
@@ -348,10 +348,9 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
  /*   
         sub     r4, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r4, #0x2000                             //#0x5000 pro 0x6fff
- */       
+	cmp     r4, #0x2000                             //#0x5000 pro 0x6fff      
         bcs.n     end_EXTI4_IRQHandler
-
+ */ 
 
 #ifdef DEBUG_EXTI43
         movs    r0,#0xc3
