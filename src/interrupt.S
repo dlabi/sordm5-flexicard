@@ -1,4 +1,4 @@
-#define _VER_ 1.9
+#define _VER_ 2.0
 
 #include "main.h"
 
@@ -320,13 +320,17 @@ EXTI4_IRQHandler:
         //movs    r0,#0xc1                                  
         //str     r0,[r12,ODR]
         vstr     reg_bit0_high,[r12,ODR]
+        nop
+        vstr     reg_zero,[r12,ODR]
 #endif
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
 
+/*
 clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+*/
 
         //ldr     r2,=GPIOC_BASE nahrazeno
         //ldr     r5,=GPIOB_BASE nahrazeno
