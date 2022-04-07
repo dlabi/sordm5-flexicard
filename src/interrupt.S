@@ -1,4 +1,4 @@
-#define _VER_ 2.1
+#define _VER_ 2.2
 
 #include "main.h"
 
@@ -320,8 +320,8 @@ EXTI4_IRQHandler:
         //movs    r0,#0xc1                                  
         //str     r0,[r12,ODR]
         vstr     reg_bit0_high,[r12,ODR]
-        nop
-        vstr     reg_zero,[r12,ODR]
+        //nop
+        //vstr     reg_zero,[r12,ODR]
 #endif
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
@@ -337,7 +337,7 @@ clear_pending_iorq_int:
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
-        ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
+        //ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
         //tst     r0,#_MREQ_MASK                          // check _MREQ
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
         bne.n   3$
