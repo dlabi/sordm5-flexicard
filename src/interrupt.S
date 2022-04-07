@@ -1,4 +1,4 @@
-#define _VER_ 2.2
+#define _VER_ 2.3
 
 #include "main.h"
 
@@ -379,9 +379,11 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 // Use WFE to wait until _MREQ goes high
 
+/*
         vmov	r3,reg_exti_base
 	set_EXTI4_FTSR
-  /*      
+ */       
+      
         ldr     r3,=EXTI
         //movs    r0,#0
         movs    r1,#EXTI_Line4
@@ -390,8 +392,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r0,[r3,IMR]     // EXTI_IMR
         str     r1,[r3,PR]      // EXTI_PR  - clear the current PC4 interrupt
         str     r1,[r3,EMR]
-*/
-        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
+
+//        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
              
 
         //mov     r1,#DATA_IN_MODE
@@ -421,9 +423,9 @@ end_EXTI4_IRQHandler:
         vstr     reg_led_off,[r12,ODR]
 #endif
         
-        clear_EXTI4_FTSR
+//        clear_EXTI4_FTSR
 
-/*
+
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]     // EXTI_IMR
         orr     r0,#0x0010      // reenable PC4 interrupts
@@ -434,7 +436,7 @@ end_EXTI4_IRQHandler:
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
       //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
       //  str     r1,[r0]
-*/
+
         dsb
         bx      lr
 
