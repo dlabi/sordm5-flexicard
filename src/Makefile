@@ -32,7 +32,7 @@ OBJDUMP=arm-none-eabi-objdump
 HEX2DFU=./hex2dfu
 
 #CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
-CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld -ffunction-sections -fdata-sections -fomit-frame-pointer
+CFLAGS  = -g -O0 -Wall -Tstm32_flash.ld -ffunction-sections -fdata-sections -fomit-frame-pointer
 CFLAGS += -DUSE_STDPERIPH_DRIVER
 CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16

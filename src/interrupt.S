@@ -1,4 +1,4 @@
-#define _VER_ 2.3
+#define _VER_ 2.4
 
 #include "main.h"
 
@@ -313,15 +313,15 @@ init_fpu_regs:
 
 .type EXTI4_IRQHandler, %function
 EXTI4_IRQHandler:
-        vmov	r12,reg_gpioa_base
-       //ldr     r12,=GPIOA_BASE
+        vmov	r11,reg_gpioa_base
+       //ldr     r11,=GPIOA_BASE
         // assume enter on rising edge
 #ifdef DEBUG_EXTI4_START
         //movs    r0,#0xc1                                  
-        //str     r0,[r12,ODR]
-        vstr     reg_bit0_high,[r12,ODR]
+        //str     r0,[r11,ODR]
+        vstr     reg_bit0_high,[r11,ODR]
         //nop
-        //vstr     reg_zero,[r12,ODR]
+        //vstr     reg_zero,[r11,ODR]
 #endif
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
@@ -343,8 +343,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         bne.n   3$
 #ifdef DEBUG_EXTI4
         //movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
-        //str     r0,[r12,ODR]
-        vstr     reg_bit1_high,[r12,ODR]
+        //str     r0,[r11,ODR]
+        vstr     reg_bit1_high,[r11,ODR]
 #endif
       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
@@ -359,7 +359,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 #ifdef DEBUG_EXTI43
         movs    r0,#0xc3
-        str     r0,[r12,ODR]
+        str     r0,[r11,ODR]
 #endif
         vmov	r3,reg_rom_base
         //ldr     r3,=rom_base
@@ -373,8 +373,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 #ifdef DEBUG_EXTI4
         //movs    r0,#0x44
-        //str     r0,[r12,ODR]
-        vstr     reg_led_on,[r12,ODR]
+        //str     r0,[r11,ODR]
+        vstr     reg_led_on,[r11,ODR]
 #endif
 
 // Use WFE to wait until _MREQ goes high
@@ -412,15 +412,15 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 #ifdef DEBUG_EXTI45
         movs    r0,#0xc5
-        str     r0,[r12, ODR]
+        str     r0,[r11, ODR]
 #endif
        // b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
         //movs    r0,#0xc0                           //PA0 - 1 PA1 - 1
-        //str     r0,[r12, ODR]
-        vstr     reg_led_off,[r12,ODR]
+        //str     r0,[r11, ODR]
+        vstr     reg_led_off,[r11,ODR]
 #endif
         
 //        clear_EXTI4_FTSR
