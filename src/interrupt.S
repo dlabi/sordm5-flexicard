@@ -1,4 +1,4 @@
-#define _VER_ 2.4
+#define _VER_ 2.5
 
 #include "main.h"
 
@@ -336,10 +336,10 @@ clear_pending_iorq_int:
         //ldr     r5,=GPIOB_BASE nahrazeno
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
-        //ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
-        //tst     r0,#_MREQ_MASK                          // check _MREQ
-        tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
+        //ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+        //tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
+        ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
+        tst     r0,#_MREQ_MASK                          // check _MREQ
         bne.n   3$
 #ifdef DEBUG_EXTI4
         //movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
