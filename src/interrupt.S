@@ -1,4 +1,4 @@
-#define _VER_ 2.7
+#define _VER_ 2.8
 
 #include "main.h"
 
@@ -343,8 +343,8 @@ clear_pending_iorq_int:
         //ldr     r5,=GPIOB_BASE nahrazeno
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        //ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
-        //tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
+         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+        
        // ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
         //tst     r0,#_MREQ_MASK                          // check _MREQ
         //bne.n   3$
@@ -356,6 +356,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq.n   end_EXTI4_IRQHandler
+        tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
+        bne.n   end_EXTI4_IRQHandler
         sub     r4, r1, #0x8000
 
  /*   
@@ -401,7 +403,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 //        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
 
-        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4     
+        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive     
 
         //mov     r1,#DATA_IN_MODE
         vmov	r1,reg_moder_datain
@@ -422,7 +424,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r0,[r11, ODR]
 #endif
        // b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
-        clear_EXTI4_RTSR
+        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
