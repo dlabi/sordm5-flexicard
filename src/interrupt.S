@@ -1,4 +1,4 @@
-#define _VER_ 2.9
+#define _VER_ 3.0
 
 #include "main.h"
 
@@ -188,19 +188,13 @@ rom_base:
 #define	DATA_OUT_MODE	0x55550020
 #define	DATA_IN_MODE	0x00000020
 
-//#define Z80_WRITE_MASK	0x0001
-//#define _IORQ_MASK	0x0002
-//#define _ROMEN_MASK	0x0004
 #define _MREQ_MASK	0x0010
 #define _MRD_MASK	0x0800
 #define _MWR_MASK	0x1000
 #define _IORD_MASK	0x2000
 #define _IOWR_MASK	0x4000
 
-#define ROMDIS_HIGH	0x0008
 
-#define LOWEST_ROM_ID	6
-#define SUPPORTED_NUMBER_OF_ROMS	2
 .section .data
 // rom_bank must immediately follow romdis
 romdis:
@@ -343,20 +337,20 @@ clear_pending_iorq_int:
         //ldr     r5,=GPIOB_BASE nahrazeno
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
+        
          
 
        // ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
         //tst     r0,#_MREQ_MASK                          // check _MREQ
         //bne.n   3$
-#ifdef DEBUG_EXTI43
-        //movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
-        //str     r0,[r11,ODR]
+#ifdef DEBUG_EXTI4
         vstr     reg_bit1_high,[r11,ODR]
 #endif
+         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq.n   end_EXTI4_IRQHandler
-        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne.n   end_EXTI4_IRQHandler
         sub     r4, r1, #0x8000
@@ -367,7 +361,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         bcs.n     end_EXTI4_IRQHandler
  */ 
 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI43
         //movs    r0,#0xc3
         //str     r0,[r11,ODR]
         vstr     reg_bit1_high,[r11,ODR]
@@ -424,7 +418,6 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         movs    r0,#0xc5
         str     r0,[r11, ODR]
 #endif
-       // b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu
 
 end_EXTI4_IRQHandler:
