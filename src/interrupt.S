@@ -1,4 +1,4 @@
-#define _VER_ 2.6
+#define _VER_ 2.7
 
 #include "main.h"
 
@@ -63,6 +63,13 @@
 	vstr	reg_bit4_high,[r3,FTSR]
 .endm
 
+.macro clear_EXTI4_RTSR   //rising edge selection register
+	vstr	reg_zero,[r3,RTSR]
+.endm
+
+.macro set_EXTI4_RTSR
+	vstr	reg_bit4_high,[r3,RTSR]
+.endm
 
 .section .rodata
 // Can put up to four 16K roms here which will get mapped to rom 12, 13, 14 and 15
@@ -393,7 +400,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r1,[r3,EMR]
 
 //        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
-             
+
+        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4     
 
         //mov     r1,#DATA_IN_MODE
         vmov	r1,reg_moder_datain
@@ -414,6 +422,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r0,[r11, ODR]
 #endif
        // b.n     EXTI4_Start_Polling_For_MREQ_LOW      // loop again instead of exitting the ISR
+        clear_EXTI4_RTSR
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
