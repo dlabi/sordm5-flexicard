@@ -472,9 +472,9 @@ EXTI1_IRQHandler:
 	movs	    r1,#0
 	ldr	    r3,=romdis
 	str	    r1,[r3]		// save potential romdis as LOW
-	subs	    r0,r0,#LOWEST_ROM_ID
+	//subs	    r0,r0,#LOWEST_ROM_ID
 	bmi.n	    end_EXTI1_IRQHandler
-	cmp	    r0,#SUPPORTED_NUMBER_OF_ROMS
+	//cmp	    r0,#SUPPORTED_NUMBER_OF_ROMS
 	bge.n	    end_EXTI1_IRQHandler
 	movs	    r1,#0x0008
 	
