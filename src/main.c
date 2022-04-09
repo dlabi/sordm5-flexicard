@@ -225,8 +225,8 @@ void config_PC4_int(void) {
         /* Interrupt mode */
         EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
         /* Triggers on rising and falling edge */
-        EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
-        //EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
+        //EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+        EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
         /* Add to EXTI */
         EXTI_Init(&EXTI_InitStruct);
 

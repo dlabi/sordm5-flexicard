@@ -1,4 +1,4 @@
-#define _VER_ 2.5
+#define _VER_ 2.6
 
 #include "main.h"
 
@@ -338,10 +338,10 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         //ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
         //tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not wait for it
-        ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
-        tst     r0,#_MREQ_MASK                          // check _MREQ
-        bne.n   3$
-#ifdef DEBUG_EXTI4
+       // ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
+        //tst     r0,#_MREQ_MASK                          // check _MREQ
+        //bne.n   3$
+#ifdef DEBUG_EXTI43
         //movs    r0,#0xc2                                   //PA0 - 0 PA1 - 1
         //str     r0,[r11,ODR]
         vstr     reg_bit1_high,[r11,ODR]
@@ -357,9 +357,10 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         bcs.n     end_EXTI4_IRQHandler
  */ 
 
-#ifdef DEBUG_EXTI43
-        movs    r0,#0xc3
-        str     r0,[r11,ODR]
+#ifdef DEBUG_EXTI4
+        //movs    r0,#0xc3
+        //str     r0,[r11,ODR]
+        vstr     reg_bit1_high,[r11,ODR]
 #endif
         vmov	r3,reg_rom_base
         //ldr     r3,=rom_base
@@ -372,8 +373,6 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
 #ifdef DEBUG_EXTI4
-        //movs    r0,#0x44
-        //str     r0,[r11,ODR]
         vstr     reg_led_on,[r11,ODR]
 #endif
 
@@ -418,8 +417,6 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
-        //movs    r0,#0xc0                           //PA0 - 1 PA1 - 1
-        //str     r0,[r11, ODR]
         vstr     reg_led_off,[r11,ODR]
 #endif
         
