@@ -1,4 +1,4 @@
-#define _VER_ 3.0
+#define _VER_ 3.1
 
 #include "main.h"
 
@@ -11,7 +11,7 @@
 	.global EXTI1_IRQHandler
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
-	.global romdis
+//	.global romdis
 	.global rom_base
 	.global main_thread_command
 	.global main_thread_data
@@ -94,7 +94,6 @@ rom_base:
         .equ GPIOH_BASE,   (PERIPH_BASE_AHB1 + 0x1C00)
         .equ GPIOI_BASE,   (PERIPH_BASE_AHB1 + 0x2000)
 
- //       .equ C_TO_B_OFFSET,     (GPIOC_BASE - GPIOB_BASE)
 	.equ C_TO_D_OFFSET,     (GPIOD_BASE - GPIOC_BASE)
 	.equ C_TO_E_OFFSET,     (GPIOE_BASE - GPIOC_BASE)
 
@@ -159,7 +158,7 @@ rom_base:
         .equ IDR             ,   0x10
         .equ ODR             ,   0x14
 
-        .equ ROMDIS_HIGH     ,   0x0008
+  //      .equ ROMDIS_HIGH     ,   0x0008
 
         .equ SCB_AIRCR       , 0xE000ED0C
 
@@ -215,15 +214,8 @@ main_thread_data:
         .lcomm  EXTI4_tempvar,4
 
 
-//PD15 - PD8 - connect to D7 to D0 on Amstrad
-//PE15 - PE0 - connect to A15 to A0 on Amstrad
-//PC0 - Amstrad /WR
-//PC1 - Amstrad /IORQ
-//PC2 - Amstrad /ROMEN
-//PC3 - Amstrad ROMDIS
-//PC4 - Amstrad /MREQ
 
-//PA0 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
+//PA0-PA2 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
 //PB3 - RFSH
 //PB5 - WAIT
@@ -315,11 +307,9 @@ init_fpu_regs:
 .type EXTI4_IRQHandler, %function
 EXTI4_IRQHandler:
         vmov	r11,reg_gpioa_base
-       //ldr     r11,=GPIOA_BASE
+
         // assume enter on rising edge
 #ifdef DEBUG_EXTI4_START
-        //movs    r0,#0xc1                                  
-        //str     r0,[r11,ODR]
         vstr     reg_bit0_high,[r11,ODR]
         //nop
         //vstr     reg_zero,[r11,ODR]
@@ -327,26 +317,19 @@ EXTI4_IRQHandler:
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
 
-/*
+
 clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
-*/
 
-        //ldr     r2,=GPIOC_BASE nahrazeno
-        //ldr     r5,=GPIOB_BASE nahrazeno
 EXTI4_Start_Polling_For_MREQ_LOW:
 3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         
          
-
-       // ldr     r0,[r2, IDR]                             // GPIOC->IDR get mreq
-        //tst     r0,#_MREQ_MASK                          // check _MREQ
-        //bne.n   3$
 #ifdef DEBUG_EXTI4
         vstr     reg_bit1_high,[r11,ODR]
 #endif
-         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq.n   end_EXTI4_IRQHandler
@@ -362,17 +345,14 @@ EXTI4_Start_Polling_For_MREQ_LOW:
  */ 
 
 #ifdef DEBUG_EXTI43
-        //movs    r0,#0xc3
-        //str     r0,[r11,ODR]
         vstr     reg_bit1_high,[r11,ODR]
 #endif
         vmov	r3,reg_rom_base
-        //ldr     r3,=rom_base
         ldrb    r0,[r3,r4]              // get the byte from a 16K ROM
         lsls    r0,r0, #8
         
         vmov	r1,reg_moder_dataout
-        //ldr     r1,=DATA_OUT_MODE
+
         str     r0,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
@@ -386,8 +366,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         vmov	r3,reg_exti_base
 	set_EXTI4_FTSR
  */       
-      
-        ldr     r3,=EXTI
+        vmov	r3,reg_exti_base
+        //ldr     r3,=EXTI
         //movs    r0,#0
         movs    r1,#EXTI_Line4
         ldr     r0,[r3,IMR]     // EXTI_IMR
@@ -427,8 +407,8 @@ end_EXTI4_IRQHandler:
         
 //        clear_EXTI4_FTSR
 
-
-        ldr     r3,=EXTI
+        vmov	r3,reg_exti_base
+        //ldr     r3,=EXTI
         ldr     r0,[r3,IMR]     // EXTI_IMR
         orr     r0,#0x0010      // reenable PC4 interrupts
         //str     r0,[r3,IMR]   // EXTI_IMR
