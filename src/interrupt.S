@@ -1,4 +1,4 @@
-#define _VER_ 3.1
+#define _VER_ 3.2
 
 #include "main.h"
 
@@ -302,7 +302,7 @@ init_fpu_regs:
 	bx	lr
 
 
-// _MREQ Handler. Int on +ve edge
+// _MREQ Handler. Int on -ve edge
 
 .type EXTI4_IRQHandler, %function
 EXTI4_IRQHandler:
@@ -317,13 +317,11 @@ EXTI4_IRQHandler:
         vmov	r2,reg_gpioc_base
         vmov	r5,reg_gpiob_base
 
-
 clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
-EXTI4_Start_Polling_For_MREQ_LOW:
-3$:      ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
+        ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         
          
 #ifdef DEBUG_EXTI4
@@ -332,10 +330,10 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
-        beq.n   end_EXTI4_IRQHandler
+        beq     end_EXTI4_IRQHandler
 
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
-        bne.n   end_EXTI4_IRQHandler
+        bne     end_EXTI4_IRQHandler
         sub     r4, r1, #0x8000
 
  /*   
@@ -353,10 +351,10 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         
         vmov	r1,reg_moder_dataout
 
-        str     r0,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
+        str     r0,[r2, C_TO_D_OFFSET + ODR]    // GPIOD ODR
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI45
         vstr     reg_led_on,[r11,ODR]
 #endif
 
@@ -367,8 +365,6 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 	set_EXTI4_FTSR
  */       
         vmov	r3,reg_exti_base
-        //ldr     r3,=EXTI
-        //movs    r0,#0
         movs    r1,#EXTI_Line4
         ldr     r0,[r3,IMR]     // EXTI_IMR
         and     r0,#0xffffffef  // turn off  PC4 int
@@ -378,9 +374,8 @@ EXTI4_Start_Polling_For_MREQ_LOW:
 
 //        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
 
-        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive     
+        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3! 
 
-        //mov     r1,#DATA_IN_MODE
         vmov	r1,reg_moder_datain
 
 	dsb             // not entirely sure if this is required
@@ -398,7 +393,7 @@ EXTI4_Start_Polling_For_MREQ_LOW:
         movs    r0,#0xc5
         str     r0,[r11, ODR]
 #endif
-        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu
+        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
