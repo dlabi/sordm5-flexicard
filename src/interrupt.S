@@ -1,4 +1,4 @@
-#define _VER_ 3.2
+#define _VER_ 3.3
 
 #include "main.h"
 
@@ -354,7 +354,7 @@ clear_pending_iorq_int:
         str     r0,[r2, C_TO_D_OFFSET + ODR]    // GPIOD ODR
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-#ifdef DEBUG_EXTI45
+#ifdef DEBUG_EXTI4
         vstr     reg_led_on,[r11,ODR]
 #endif
 
