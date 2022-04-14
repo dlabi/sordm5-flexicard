@@ -1,4 +1,4 @@
-#define _VER_ 3.3
+#define _VER_ 3.4
 
 #include "main.h"
 
@@ -329,11 +329,14 @@ clear_pending_iorq_int:
 #endif
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
       //0x8000-0xffff
-        tst     r1,#0x8000                              // check A15. If it is high. We are interested
-        beq     end_EXTI4_IRQHandler
 
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne     end_EXTI4_IRQHandler
+
+        tst     r1,#0x8000                              // check A15. If it is high. We are interested
+        beq     end_EXTI4_IRQHandler
+        
+        
         sub     r4, r1, #0x8000
 
  /*   
