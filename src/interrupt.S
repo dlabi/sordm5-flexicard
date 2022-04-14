@@ -1,4 +1,4 @@
-#define _VER_ 3.4
+#define _VER_ 3.5
 
 #include "main.h"
 
@@ -323,11 +323,14 @@ clear_pending_iorq_int:
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         
-         
+        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
-        vstr     reg_bit1_high,[r11,ODR]
+        ror     r0, r4, #14
+        and     r0, #2
+        str    r0, [r11,ODR]
+        //vstr     reg_bit1_high,[r11,ODR]
 #endif
-        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr
+        
       //0x8000-0xffff
 
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
