@@ -1,4 +1,4 @@
-#define _VER_ 3.9
+#define _VER_ 4.0
 
 #include "main.h"
 
@@ -323,7 +323,7 @@ clear_pending_iorq_int:
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI42
         //ldr     r0,[r2, IDR]
         //ror     r0,r0, #4
         ror     r0, r4, #11 //mdr to bit 0

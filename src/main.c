@@ -427,10 +427,11 @@ int __attribute__((optimize("O0")))  main(void) {
 #endif
 		
 	while(1) {
-
-		
-        }
-			   
+         if (GPIOB->IDR && GPIO_Pin_11 == 0)        
+	 GPIOA->ODR = 0xc0;
+         
+         else GPIOA->ODR = 0x81;	
+        			   
 }
 		
 
