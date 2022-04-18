@@ -1,4 +1,4 @@
-#define _VER_ 3.6
+#define _VER_ 3.7
 
 #include "main.h"
 
@@ -322,11 +322,11 @@ clear_pending_iorq_int:
 //	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
         ror     r0, r4, #14
         //and     r0, #2
+        orr    r0,#0xc0
         str    r0, [r11,ODR]
         //vstr     reg_bit1_high,[r11,ODR]
 #endif
@@ -420,7 +420,7 @@ end_EXTI4_IRQHandler:
       //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
       //  str     r1,[r0]
 
-        dsb
+        //dsb
         bx      lr
 
 
