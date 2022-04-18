@@ -1,4 +1,4 @@
-#define _VER_ 3.5
+#define _VER_ 3.6
 
 #include "main.h"
 
@@ -309,7 +309,7 @@ EXTI4_IRQHandler:
         vmov	r11,reg_gpioa_base
 
         // assume enter on rising edge
-#ifdef DEBUG_EXTI4_START
+#ifdef DEBUG_EXTI4_START1
         vstr     reg_bit0_high,[r11,ODR]
         //nop
         //vstr     reg_zero,[r11,ODR]
@@ -318,19 +318,19 @@ EXTI4_IRQHandler:
         vmov	r5,reg_gpiob_base
 
 clear_pending_iorq_int:
-	vmov	r3,reg_exti_base		// s7 = EXTI
-	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+//	vmov	r3,reg_exti_base		// s7 = EXTI
+//	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
         ror     r0, r4, #14
-        and     r0, #2
+        //and     r0, #2
         str    r0, [r11,ODR]
         //vstr     reg_bit1_high,[r11,ODR]
 #endif
-        
+        b     end_EXTI4_IRQHandler
       //0x8000-0xffff
 
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
@@ -360,7 +360,7 @@ clear_pending_iorq_int:
         str     r0,[r2, C_TO_D_OFFSET + ODR]    // GPIOD ODR
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI44
         vstr     reg_led_on,[r11,ODR]
 #endif
 
@@ -402,7 +402,7 @@ clear_pending_iorq_int:
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI44
         vstr     reg_led_off,[r11,ODR]
 #endif
         
