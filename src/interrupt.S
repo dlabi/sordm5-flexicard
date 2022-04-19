@@ -293,8 +293,6 @@ init_fpu_regs:
         movs	r0,#0x44
 	vmov	reg_led_on,r0
 
-str
-
 	//mov32	r0,0x10000000
 	//vmov	reg_ccmram_log,r0
 
