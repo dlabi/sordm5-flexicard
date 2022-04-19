@@ -1,4 +1,4 @@
-#define _VER_ 4.0
+#define _VER_ 4.1
 
 #include "main.h"
 
@@ -293,8 +293,7 @@ init_fpu_regs:
         movs	r0,#0x44
 	vmov	reg_led_on,r0
 
-        movs	r0,#0xc0
-	vmov	reg_led_off,r0
+str
 
 	//mov32	r0,0x10000000
 	//vmov	reg_ccmram_log,r0
@@ -309,7 +308,7 @@ EXTI4_IRQHandler:
         vmov	r11,reg_gpioa_base
 
         // assume enter on rising edge
-#ifdef DEBUG_EXTI4_START1
+#ifdef DEBUG_EXTI4_START
         vstr     reg_bit0_high,[r11,ODR]
         //nop
         //vstr     reg_zero,[r11,ODR]
@@ -323,12 +322,11 @@ clear_pending_iorq_int:
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
-#ifdef DEBUG_EXTI42
+#ifdef DEBUG_EXTI4
         //ldr     r0,[r2, IDR]
         //ror     r0,r0, #4
-        ror     r0, r4, #11 //mdr to bit 0
-        //and     r0, #2
-        orr    r0,#0xc0
+        lsr     r0, r4, #10     //mdr to bit 1
+        //orr    r0,#0x80
         str    r0, [r11,ODR]
         //vstr     reg_bit1_high,[r11,ODR]
 #endif
@@ -404,7 +402,7 @@ clear_pending_iorq_int:
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
-#ifdef DEBUG_EXTI44
+#ifdef DEBUG_EXTI4
         vstr     reg_led_off,[r11,ODR]
 #endif
         

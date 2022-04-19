@@ -268,7 +268,7 @@ void config_gpio_portc(void) {
 
 	/* Configure GPIO Settings */
 	//GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 |GPIO_Pin_4 |GPIO_Pin_8 ;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 |GPIO_Pin_4 ;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 ;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -427,10 +427,14 @@ int __attribute__((optimize("O0")))  main(void) {
 #endif
 		
 	while(1) {
-         if (GPIOB->IDR && GPIO_Pin_11 == 0)        
+         /*               
+         if ((GPIOB->IDR & GPIO_Pin_11) == 0) 
+         {       
 	 GPIOA->ODR = 0xc0;
-         
-         else GPIOA->ODR = 0x81;	
+         }
+         else {GPIOA->ODR = 0x81;}
+         */
+        }	
         			   
 }
 		
