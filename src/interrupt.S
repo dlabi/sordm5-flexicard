@@ -1,4 +1,4 @@
-#define _VER_ 5.7
+#define _VER_ 5.8
 
 #include "main.h"
 
@@ -335,17 +335,17 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
     
         tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne     end_EXTI4_IRQHandler
+/* 
          //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
                
         sub     r0, r1, #0x8000
-
- /*   
+*/   
         sub     r0, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r0, #0x2000                             //#0x5000 pro 0x6fff      
+	cmp     r0, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
         bcs.n     end_EXTI4_IRQHandler
- */ 
+  
 
 #ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
