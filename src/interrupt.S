@@ -1,4 +1,4 @@
-#define _VER_ 5.5
+#define _VER_ 5.6
 
 #include "main.h"
 
@@ -185,10 +185,6 @@ rom_base:
         .equ	FTSR		,	0x0c
 	.equ	PR		,	0x14
 
-	.equ	DSK_TRACKINFO_NUMBEROFSECTORS 	, 0x15
-	.equ	DSK_TRACKINFO_SECTORINFOLIST 	, 0x18
-
-
     .equ        SYSCFG_BASE,    0x40013800
     .equ        SYSCFG_EXTICR1, SYSCFG_BASE + 0x08
 
@@ -297,7 +293,7 @@ init_fpu_regs:
 	vmov	reg_bit8_high,r0
 
         mov32	r0,rom_base
-	vmov	reg_gpiob_base,r0
+	vmov	reg_rom_base,r0
 
         movs	r0,#0x44
 	vmov	reg_led_on,r0
