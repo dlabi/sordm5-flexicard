@@ -37,8 +37,8 @@ CFLAGS += -DUSE_STDPERIPH_DRIVER
 CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
-#CFLAGS += --specs=nosys.specs
-CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+CFLAGS += --specs=nosys.specs
+#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1

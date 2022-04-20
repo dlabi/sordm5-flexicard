@@ -1,4 +1,4 @@
-#define _VER_ 4.5
+#define _VER_ 4.6
 
 #include "main.h"
 
@@ -74,7 +74,7 @@
 .macro unrolled_exit_EXTI4
 	dsb
 #if defined(DEBUG_EXTI4_END)
-        vstr     reg_led_off,[r11,ODR]
+        vstr     reg_led_off,[r12,ODR]
 #endif
 	bx	lr
 .endm
@@ -103,6 +103,10 @@ rom_base:
         .equ GPIOG_BASE,   (PERIPH_BASE_AHB1 + 0x1800)
         .equ GPIOH_BASE,   (PERIPH_BASE_AHB1 + 0x1C00)
         .equ GPIOI_BASE,   (PERIPH_BASE_AHB1 + 0x2000)
+
+        .equ B_TO_C_OFFSET,     (GPIOC_BASE - GPIOB_BASE)
+	.equ B_TO_D_OFFSET,     (GPIOD_BASE - GPIOB_BASE)
+        .equ B_TO_E_OFFSET,     (GPIOE_BASE - GPIOB_BASE)
 
 	.equ C_TO_D_OFFSET,     (GPIOD_BASE - GPIOC_BASE)
 	.equ C_TO_E_OFFSET,     (GPIOE_BASE - GPIOC_BASE)
@@ -309,35 +313,37 @@ init_fpu_regs:
 	bx	lr
 
 
-// _MREQ Handler. Int on -ve edge
+// _MREQ Handler. Int on falling edge
 
 .type EXTI4_IRQHandler, %function
 .align 4
 .thumb_func
 EXTI4_IRQHandler:
-        vmov	r11,reg_gpioa_base
+        vmov	r12,reg_gpioa_base
 
-        // assume enter on rising edge
+
 #ifdef DEBUG_EXTI4_START
-        vstr     reg_bit0_high,[r11,ODR]
+        vstr     reg_bit0_high,[r12,ODR]
         //nop
-        //vstr     reg_zero,[r11,ODR]
+        //vstr     reg_zero,[r12,ODR]
 #endif
-        vmov	r2,reg_gpioc_base
-        vmov	r5,reg_gpiob_base
+        vmov	r2,reg_gpiob_base
+        //vmov	r5,reg_gpiob_base
 
 clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
-        ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
-#ifdef DEBUG_EXTI43
+        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
+        ldr     r4,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
+#ifdef DEBUG_EXTI4
         //dsb
         //lsr     r0, r4, #10     //mdr to bit 1
         //and     r0,#0x2
-        //str    r0, [r11,ODR]
-        vstr     reg_bit1_high,[r11,ODR]
+        //str    r0, [r12,ODR]
+        vstr     reg_bit1_high,[r12,ODR]
+        nop
+        nop
 #endif
         unrolled_exit_EXTI4
 
@@ -359,7 +365,7 @@ clear_pending_iorq_int:
  */ 
 
 #ifdef DEBUG_EXTI43
-        vstr     reg_bit1_high,[r11,ODR]
+        vstr     reg_bit1_high,[r12,ODR]
 #endif
         vmov	r3,reg_rom_base
         ldrb    r0,[r3,r4]              // get the byte from a 16K ROM
@@ -367,11 +373,11 @@ clear_pending_iorq_int:
         
         vmov	r1,reg_moder_dataout
 
-        str     r0,[r2, C_TO_D_OFFSET + ODR]    // GPIOD ODR
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
+        str     r0,[r2, B_TO_D_OFFSET + ODR]    // GPIOD ODR
+        str     r1,[r2, B_TO_D_OFFSET + MODER]  // MODER set to outputs
 
 #ifdef DEBUG_EXTI44
-        vstr     reg_led_on,[r11,ODR]
+        vstr     reg_led_on,[r12,ODR]
 #endif
 
 // Use WFE to wait until _MREQ goes high
@@ -403,136 +409,33 @@ clear_pending_iorq_int:
         //databus_read_extra_delay
 
 // _MREQ should have just gone high here
-        str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
+        str     r1,[r2, B_TO_D_OFFSET + MODER]   // tristate databus
 
 #ifdef DEBUG_EXTI45
         movs    r0,#0xc5
-        str     r0,[r11, ODR]
+        str     r0,[r12, ODR]
 #endif
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
 #ifdef DEBUG_EXTI4
-        vstr     reg_led_off,[r11,ODR]
+        vstr     reg_led_off,[r12,ODR]
 #endif
         
-//        clear_EXTI4_FTSR
-
         vmov	r3,reg_exti_base
         //ldr     r3,=EXTI
         ldr     r0,[r3,IMR]     // EXTI_IMR
         orr     r0,#0x0010      // reenable PC4 interrupts
-        //str     r0,[r3,IMR]   // EXTI_IMR
 
         movs    r1,#EXTI_Line4
         str     r1,[r3,PR]                      // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
-      //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
+      //  ldr     r0,=EXTI4_tempvar             // You need to read-modify-write to prevent double interrupts
       //  str     r1,[r0]
 
-        dsb             //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
+        dsb                                     //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
         bx      lr
 
 
-
-// _IORQ interrupt -ve edge
-.type EXTI1_IRQHandler, %function
-EXTI1_IRQHandler:
-	ldr	    r2,=GPIOC_BASE
-        ldr         r12,=GPIOA_BASE
-
-	ldr	    r1,[r2, C_TO_E_OFFSET + IDR]		// GPIOE->IDR get the address 
-	ldr	    r0,[r2,IDR]	                        // get the portc control pins
-
-	// NOTE: Parados wants to see a floppy chip
-    //    tst     r1,#0x0480      // check A10/A8
-    //    beq.n   fdc_chip_selected
-
-	tst	    r1,#0x2000	// check A13 is low
-	bne.n	    end_EXTI1_IRQHandler
-	tst	    r1,#0x8000	// check A15 is high
-	beq.n	    end_EXTI1_IRQHandler
-	//tst	    r0,#Z80_WRITE_MASK	// check r/w is low
-	//bne.n	    end_EXTI1_IRQHandler
-// Most likely a write to the ROM select register
-	ldr	    r3,=rom_bank
-	ldr	    r0,[r2, C_TO_D_OFFSET + IDR] // GPIOD IDR. Get the byte written to the rom select reg
-	lsrs	    r0,r0, #8
-	ands	    r0,r0,#0xff
-	str	    r0,[r3]		// save the rom select register
-	movs	    r1,#0
-	ldr	    r3,=romdis
-	str	    r1,[r3]		// save potential romdis as LOW
-	//subs	    r0,r0,#LOWEST_ROM_ID
-	bmi.n	    end_EXTI1_IRQHandler
-	//cmp	    r0,#SUPPORTED_NUMBER_OF_ROMS
-	bge.n	    end_EXTI1_IRQHandler
-	movs	    r1,#0x0008
-	
-  	str	    r1,[r3]		// save potential romdis as HIGH
-#ifdef DEBUG_EXTI1
-    movs    r0,#0
-    str     r0,[r12,ODR]
-#endif
-	b.n	    end_EXTI1_IRQHandler		// consider repeating the code here instead of jumping
-
-waitIORQHIGH_end_EXTI1_IRQHandler:
-#ifdef DEBUG_EXTI1_WFE
-	ldr     r12,=GPIOA_BASE
-    movs    r0,#0
-    str     r0,[r12,ODR]
-#endif
-// Use WFE to wait until _IORQ goes high
-        ldr     r3,=EXTI
-        movs    r0,#0
-        movs    r1,#EXTI_Line1
-        ldr     r0,[r3,IMR]   // EXTI_IMR
-        and     r0,#0xfffffffd  // turn off  PC1 int
-        str     r0,[r3,IMR]   // EXTI_IMR
-
-        ldr     r0,[r3,RTSR]   // EXTI_RTSR
-        orr     r0,#0x0002	// Add in PC1 on rising edge event
-        str     r0,[r3,RTSR]   // EXTI_RTSR
-	
-        str     r1,[r3,PR]   // EXTI_PR  - clear the current PC1 interrupt
-        str     r1,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC4
-
-        mov     r1,#DATA_IN_MODE
-        movs    r0,#3   // set PA0/PA1 high again
-6:      dsb             // not entirely sure if this is required
-        sev     // set the event register
-        wfe     // clear the event register
-        wfe     // wait for the positive edge of _MREQ
-
-// _IORQ should have just gone high here
-#ifdef DEBUG_EXTI1_WFE
-        str     r0,[r12, ODR]
-#endif
-        str     r1,[r2, C_TO_D_OFFSET + MODER]   // tristate databus
-
-        ldr     r0,[r3,RTSR]   // EXTI_RTSR
-        and     r0,#0xfffffffd	// remove PC1 on rising edge event
-        str     r0,[r3,RTSR]   // EXTI_RTSR
-
-        // Don't loop. The chances of two IO requests in a row are very low
-
-end_EXTI1_IRQHandler:
-#ifdef DEBUG_EXTI1
-        ldr     r12,=GPIOA_BASE
-	    movs	r0,#1
-        str     r0,[r12, ODR]
-#endif
-        ldr     r3,=EXTI
-        ldr     r0,[r3,IMR]   // EXTI_IMR
-        orr     r0,#0x0002      // reenable PC1 interrupt
-        //str     r0,[r3,IMR]   // EXTI_IMR
-
-        movs    r1,#EXTI_Line1
-        str     r1,[r3,PR]   // EXTI_PR 
-        str     r0,[r3,IMR]   // EXTI_IMR	// reenable PC1
-        ldr     r0,=EXTI1_tempvar             // You need to read-modify-write to prevent double interrupts
-        str     r1,[r0]
-
-        bx      lr
 
 
