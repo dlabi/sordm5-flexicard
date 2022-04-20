@@ -1,4 +1,4 @@
-#define _VER_ 4.7
+#define _VER_ 4.8
 
 #include "main.h"
 
@@ -172,11 +172,6 @@ rom_base:
         .equ IDR             ,   0x10
         .equ ODR             ,   0x14
 
-  //      .equ ROMDIS_HIGH     ,   0x0008
-
-        .equ SCB_AIRCR       , 0xE000ED0C
-
-
         .equ    EXTI_Line1      ,       0x00002
         .equ    EXTI_Line2      ,       0x00004
         .equ    EXTI_Line4      ,       0x00010
@@ -210,10 +205,10 @@ rom_base:
 
 .section .data
 // rom_bank must immediately follow romdis
-romdis:
-	.word   0x00000000
-rom_bank:
-        .word   0x00000000
+//romdis:
+//	.word   0x00000000
+//rom_bank:
+//       .word   0x00000000
 
 
 // main_thread_data must immediately follow main_thread_command
@@ -223,9 +218,9 @@ main_thread_data:
 	.word	0x00000000			// command arg
 
 .section .bss
-        .lcomm  EXTI1_tempvar,4
-        .lcomm  EXTI2_tempvar,4
-        .lcomm  EXTI4_tempvar,4
+  //      .lcomm  EXTI1_tempvar,4
+  //      .lcomm  EXTI2_tempvar,4
+  //      .lcomm  EXTI4_tempvar,4
 
 
 
@@ -315,27 +310,30 @@ init_fpu_regs:
 
 // _MREQ Handler. Int on falling edge
 
+// meaning of 'global' registers, all should be pushed/popped automatically
+// r0 - tmp
+// r1 - address from GPIOE and also used for switch MODER to either OUTPUT or INPUT
+// r2 - reg_gpiob_base
+// r3 - exti_base
+// r12 - reg_gpioa_base - debug register
+
 .type EXTI4_IRQHandler, %function
 .align 4
 .thumb_func
 EXTI4_IRQHandler:
         vmov	r12,reg_gpioa_base
 
-
 #ifdef DEBUG_EXTI4_START
         vstr     reg_bit0_high,[r12,ODR]
-        //nop
-        //vstr     reg_zero,[r12,ODR]
 #endif
         vmov	r2,reg_gpiob_base
-        //vmov	r5,reg_gpiob_base
 
 clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        ldr     r4,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
         //dsb
         //lsr     r0, r4, #10     //mdr to bit 1
@@ -350,18 +348,18 @@ clear_pending_iorq_int:
 
       //0x8000-0xffff
 
-        tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
+        tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne     end_EXTI4_IRQHandler
 
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
         
         
-        sub     r4, r1, #0x8000
+        sub     r0, r1, #0x8000
 
  /*   
-        sub     r4, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r4, #0x2000                             //#0x5000 pro 0x6fff      
+        sub     r0, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
+	cmp     r0, #0x2000                             //#0x5000 pro 0x6fff      
         bcs.n     end_EXTI4_IRQHandler
  */ 
 
@@ -419,7 +417,7 @@ clear_pending_iorq_int:
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
-#ifdef DEBUG_EXTI4
+#ifdef DEBUG_EXTI4_END
         vstr     reg_led_off,[r12,ODR]
 #endif
         
@@ -431,8 +429,6 @@ end_EXTI4_IRQHandler:
         movs    r1,#EXTI_Line4
         str     r1,[r3,PR]                      // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
-      //  ldr     r0,=EXTI4_tempvar             // You need to read-modify-write to prevent double interrupts
-      //  str     r1,[r0]
 
         dsb                                     //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
         bx      lr
