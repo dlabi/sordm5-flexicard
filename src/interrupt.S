@@ -1,4 +1,4 @@
-#define _VER_ 5.1
+#define _VER_ 5.2
 
 #include "main.h"
 
@@ -48,8 +48,8 @@
 .endm
 
 
-.macro databus_read_extra_delay
-	.rept 0
+.macro delay
+	.rept 8
         	nop
 	.endr
 .endm
@@ -331,12 +331,13 @@ EXTI4_IRQHandler:
 #endif
        
 clear_pending_iorq_int:
-//	vmov	r3,reg_exti_base		// s7 = EXTI
-//	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+	vmov	r3,reg_exti_base		// s7 = EXTI
+	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
+        delay
         //dsb
         //lsr     r0, r4, #10     //mdr to bit 1
         //and     r0,#0x2
