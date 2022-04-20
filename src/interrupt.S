@@ -1,4 +1,4 @@
-#define _VER_ 4.6
+#define _VER_ 4.7
 
 #include "main.h"
 
@@ -345,7 +345,8 @@ clear_pending_iorq_int:
         nop
         nop
 #endif
-        unrolled_exit_EXTI4
+        //unrolled_exit_EXTI4
+        b end_EXTI4_IRQHandler
 
       //0x8000-0xffff
 
