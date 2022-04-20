@@ -1,4 +1,4 @@
-#define _VER_ 4.8
+#define _VER_ 4.9
 
 #include "main.h"
 
@@ -302,6 +302,9 @@ init_fpu_regs:
         movs	r0,#0x44
 	vmov	reg_led_on,r0
 
+        movs	r0,#0xc0
+        vmov    reg_led_off,r0
+
 	//mov32	r0,0x10000000
 	//vmov	reg_ccmram_log,r0
 
@@ -339,9 +342,7 @@ clear_pending_iorq_int:
         //lsr     r0, r4, #10     //mdr to bit 1
         //and     r0,#0x2
         //str    r0, [r12,ODR]
-        vstr     reg_bit1_high,[r12,ODR]
-        nop
-        nop
+        vstr     reg_bit0_high,[r12,ODR]
 #endif
         //unrolled_exit_EXTI4
         b end_EXTI4_IRQHandler
@@ -363,7 +364,7 @@ clear_pending_iorq_int:
         bcs.n     end_EXTI4_IRQHandler
  */ 
 
-#ifdef DEBUG_EXTI43
+#ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
 #endif
         vmov	r3,reg_rom_base
@@ -375,7 +376,7 @@ clear_pending_iorq_int:
         str     r0,[r2, B_TO_D_OFFSET + ODR]    // GPIOD ODR
         str     r1,[r2, B_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-#ifdef DEBUG_EXTI44
+#ifdef DEBUG_EXTI4_DATA_OUT
         vstr     reg_led_on,[r12,ODR]
 #endif
 
@@ -410,7 +411,7 @@ clear_pending_iorq_int:
 // _MREQ should have just gone high here
         str     r1,[r2, B_TO_D_OFFSET + MODER]   // tristate databus
 
-#ifdef DEBUG_EXTI45
+#ifdef DEBUG_EXTI4_TRISTATED
         movs    r0,#0xc5
         str     r0,[r12, ODR]
 #endif
