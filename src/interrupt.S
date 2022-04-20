@@ -1,4 +1,4 @@
-#define _VER_ 4.3
+#define _VER_ 4.4
 
 #include "main.h"
 
@@ -11,7 +11,6 @@
 	.global EXTI1_IRQHandler
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
-//	.global romdis
 	.global rom_base
 	.global main_thread_command
 	.global main_thread_data
@@ -321,7 +320,7 @@ clear_pending_iorq_int:
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
 #ifdef DEBUG_EXTI4
-
+        dsb
         lsr     r0, r4, #10     //mdr to bit 1
         and     r0,#0x2
         str    r0, [r11,ODR]
@@ -417,7 +416,7 @@ end_EXTI4_IRQHandler:
       //  ldr     r0,=EXTI4_tempvar               // You need to read-modify-write to prevent double interrupts
       //  str     r1,[r0]
 
-        dsb
+        dsb             //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
         bx      lr
 
 
