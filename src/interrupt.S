@@ -1,4 +1,4 @@
-#define _VER_ 4.4
+#define _VER_ 4.5
 
 #include "main.h"
 
@@ -69,6 +69,17 @@
 .macro set_EXTI4_RTSR
 	vstr	reg_bit4_high,[r3,RTSR]
 .endm
+
+
+.macro unrolled_exit_EXTI4
+	dsb
+#if defined(DEBUG_EXTI4_END)
+        vstr     reg_led_off,[r11,ODR]
+#endif
+	bx	lr
+.endm
+
+
 
 .section .rodata
 // Can put up to four 16K roms here which will get mapped to rom 12, 13, 14 and 15
@@ -301,6 +312,8 @@ init_fpu_regs:
 // _MREQ Handler. Int on -ve edge
 
 .type EXTI4_IRQHandler, %function
+.align 4
+.thumb_func
 EXTI4_IRQHandler:
         vmov	r11,reg_gpioa_base
 
@@ -319,14 +332,15 @@ clear_pending_iorq_int:
 
         ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r4,[r5, IDR]                            // GPIOB->IDR get mrd, mwr 
-#ifdef DEBUG_EXTI4
-        dsb
-        lsr     r0, r4, #10     //mdr to bit 1
-        and     r0,#0x2
-        str    r0, [r11,ODR]
-        //vstr     reg_bit1_high,[r11,ODR]
+#ifdef DEBUG_EXTI43
+        //dsb
+        //lsr     r0, r4, #10     //mdr to bit 1
+        //and     r0,#0x2
+        //str    r0, [r11,ODR]
+        vstr     reg_bit1_high,[r11,ODR]
 #endif
-        b     end_EXTI4_IRQHandler
+        unrolled_exit_EXTI4
+
       //0x8000-0xffff
 
         tst     r4,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
