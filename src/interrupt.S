@@ -1,4 +1,4 @@
-#define _VER_ 5.0
+#define _VER_ 5.1
 
 #include "main.h"
 
@@ -341,7 +341,7 @@ clear_pending_iorq_int:
         //lsr     r0, r4, #10     //mdr to bit 1
         //and     r0,#0x2
         //str    r0, [r12,ODR]
-        vstr     reg_bit0_high,[r12,ODR]
+        vstr     reg_bit1_high,[r12,ODR]
 #endif
         //unrolled_exit_EXTI4
         b end_EXTI4_IRQHandler
