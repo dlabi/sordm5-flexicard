@@ -1,4 +1,4 @@
-#define _VER_ 5.6
+#define _VER_ 5.7
 
 #include "main.h"
 
@@ -332,26 +332,13 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
-#ifdef DEBUG_EXTI4
-        //delay 8
-        //dsb
-        lsr     r0, #10     //mdr to bit 1
-        and     r0,#0x2
-        str    r0, [r12,ODR]
-        //vstr     reg_bit1_high,[r12,ODR]
-#endif
-        //unrolled_exit_EXTI4
-        b end_EXTI4_IRQHandler
-
-      //0x8000-0xffff
-
+    
         tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne     end_EXTI4_IRQHandler
-
+         //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
-        
-        
+               
         sub     r0, r1, #0x8000
 
  /*   
@@ -364,7 +351,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         vstr     reg_bit1_high,[r12,ODR]
 #endif
         vmov	r3,reg_rom_base
-        ldrb    r0,[r3,r4]              // get the byte from a 16K ROM
+        ldrb    r0,[r3,r0]              // get the byte from a 16K ROM
         lsls    r0,r0, #8
         
         vmov	r1,reg_moder_dataout
