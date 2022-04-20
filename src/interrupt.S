@@ -1,4 +1,4 @@
-#define _VER_ 5.4
+#define _VER_ 5.5
 
 #include "main.h"
 
@@ -339,7 +339,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 #ifdef DEBUG_EXTI4
         //delay 8
         //dsb
-        lsr     r0, r4, #10     //mdr to bit 1
+        lsr     r0, #10     //mdr to bit 1
         and     r0,#0x2
         str    r0, [r12,ODR]
         //vstr     reg_bit1_high,[r12,ODR]
