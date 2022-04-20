@@ -1,4 +1,4 @@
-#define _VER_ 4.9
+#define _VER_ 5.0
 
 #include "main.h"
 
@@ -325,15 +325,14 @@ init_fpu_regs:
 .thumb_func
 EXTI4_IRQHandler:
         vmov	r12,reg_gpioa_base
-
+        vmov	r2,reg_gpiob_base
 #ifdef DEBUG_EXTI4_START
         vstr     reg_bit0_high,[r12,ODR]
 #endif
-        vmov	r2,reg_gpiob_base
-
+       
 clear_pending_iorq_int:
-	vmov	r3,reg_exti_base		// s7 = EXTI
-	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+//	vmov	r3,reg_exti_base		// s7 = EXTI
+//	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
