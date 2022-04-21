@@ -1,4 +1,4 @@
-#define _VER_ 5.9
+#define _VER_ 6.0
 
 #include "main.h"
 
@@ -366,10 +366,8 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 
 // Use WFE to wait until _MREQ goes high
 
+
 /*
-        vmov	r3,reg_exti_base
-	set_EXTI4_FTSR
- */       
         vmov	r3,reg_exti_base
         movs    r1,#EXTI_Line4
         ldr     r0,[r3,IMR]     // EXTI_IMR
@@ -377,10 +375,11 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         str     r0,[r3,IMR]     // EXTI_IMR
         str     r1,[r3,PR]      // EXTI_PR  - clear the current PC4 interrupt
         str     r1,[r3,EMR]
+ */       
+        vmov	r3,reg_exti_base
+        set_EXTI4_RTSR                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3! 
+        vstr    reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
 
-//        vstr     reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
-
-        set_EXTI4_RTSR          // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3! 
 
         vmov	r1,reg_moder_datain
 
