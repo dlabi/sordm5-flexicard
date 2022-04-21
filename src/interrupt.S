@@ -1,4 +1,4 @@
-#define _VER_ 5.8
+#define _VER_ 5.9
 
 #include "main.h"
 
@@ -74,6 +74,7 @@
 .macro unrolled_exit_EXTI4
 	dsb
 #if defined(DEBUG_EXTI4_END)
+        delay 8
         vstr     reg_led_off,[r12,ODR]
 #endif
 	bx	lr
@@ -401,11 +402,15 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
+        unrolled_exit_EXTI4
+
+/* 
 #ifdef DEBUG_EXTI4_END
         delay 8
         vstr     reg_led_off,[r12,ODR]
 #endif
         
+       
         vmov	r3,reg_exti_base
         //ldr     r3,=EXTI
         ldr     r0,[r3,IMR]     // EXTI_IMR
@@ -417,7 +422,7 @@ end_EXTI4_IRQHandler:
 
         dsb                                     //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
         bx      lr
-
+*/
 
 
 
