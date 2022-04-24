@@ -1,4 +1,4 @@
-#define _VER_ 7.1
+#define _VER_ 7.2
 
 #include "main.h"
 
@@ -379,9 +379,9 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
  
         vmov	r3,reg_exti_base
 
-        ldr     r0,[r3,IMR]             // EXTI_IMR
-        and     r0,#0xffffffef          // turn off  PC4 int
-        str     r0,[r3,IMR]             // EXTI_IMR
+    //    ldr     r0,[r3,IMR]             // EXTI_IMR
+     //   and     r0,#0xffffffef          // turn off  PC4 int
+     //   str     r0,[r3,IMR]             // EXTI_IMR
         vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
 
         set_EXTI4_RTSR                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
