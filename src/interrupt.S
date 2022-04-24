@@ -1,4 +1,4 @@
-#define _VER_ 7.3
+#define _VER_ 7.4
 
 #include "main.h"
 
@@ -367,18 +367,9 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 // Use WFE to wait until _MREQ goes high
 
 
-/*
-        vmov	r3,reg_exti_base
-        movs    r1,#EXTI_Line4
-        ldr     r0,[r3,IMR]     // EXTI_IMR
-        and     r0,#0xffffffef  // turn off  PC4 int
-        str     r0,[r3,IMR]     // EXTI_IMR
-        str     r1,[r3,PR]      // EXTI_PR  - clear the current PC4 interrupt
-        str     r1,[r3,EMR]
- */      
- 
         vmov	r3,reg_exti_base
 
+    // disable neni potreba je automaticky, ale re-enable ji potreba je   
     //    ldr     r0,[r3,IMR]             // EXTI_IMR
      //   and     r0,#0xffffffef          // turn off  PC4 int
      //   str     r0,[r3,IMR]             // EXTI_IMR
