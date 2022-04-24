@@ -1,4 +1,4 @@
-#define _VER_ 6.5
+#define _VER_ 6.6
 
 #include "main.h"
 
@@ -408,6 +408,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         str     r0,[r12, ODR]
 #endif
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
+        vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
 
 end_EXTI4_IRQHandler:
         unrolled_exit_EXTI4
