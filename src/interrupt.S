@@ -1,4 +1,4 @@
-#define _VER_ 6.6
+#define _VER_ 6.7
 
 #include "main.h"
 
@@ -382,10 +382,9 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         ldr     r0,[r3,IMR]             // EXTI_IMR
         and     r0,#0xffffffef          // turn off  PC4 int
         str     r0,[r3,IMR]             // EXTI_IMR
-*/
         vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
-
-        set_EXTI4_RTSR                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
+*/
+//        set_EXTI4_RTSR                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
         vstr    reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
        
 
@@ -407,8 +406,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
         movs    r0,#0xc5
         str     r0,[r12, ODR]
 #endif
-        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
-        vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
+//        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:
         unrolled_exit_EXTI4
