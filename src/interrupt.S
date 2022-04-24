@@ -1,4 +1,4 @@
-#define _VER_ 6.9
+#define _VER_ 7.0
 
 #include "main.h"
 
@@ -423,8 +423,8 @@ end_EXTI4_IRQHandler:
         ldr     r0,[r3,IMR]     // EXTI_IMR
         orr     r0,#0x0010      // reenable PC4 interrupts
 
-       // movs    r1,#EXTI_Line4
-        //str     r1,[r3,PR]                      // EXTI_PR 
+        movs    r1,#EXTI_Line4
+        str     r1,[r3,PR]                      // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
 unrolled_exit_EXTI4
