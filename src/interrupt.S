@@ -1,4 +1,4 @@
-#define _VER_ 7.0
+#define _VER_ 7.1
 
 #include "main.h"
 
@@ -420,8 +420,8 @@ end_EXTI4_IRQHandler:
        
         vmov	r3,reg_exti_base
         //ldr     r3,=EXTI
-        ldr     r0,[r3,IMR]     // EXTI_IMR
-        orr     r0,#0x0010      // reenable PC4 interrupts
+ //       ldr     r0,[r3,IMR]     // EXTI_IMR
+ //       orr     r0,#0x0010      // reenable PC4 interrupts
 
         movs    r1,#EXTI_Line4
         str     r1,[r3,PR]                      // EXTI_PR 
