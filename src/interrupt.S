@@ -1,4 +1,4 @@
-#define _VER_ 7.4
+#define _VER_ 7.5
 
 #include "main.h"
 
@@ -332,8 +332,11 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr 
-    
+        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
+        tst     r0,#_MREQ_MASK
+        bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
+
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
         bne     end_EXTI4_IRQHandler
 /* 
