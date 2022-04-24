@@ -38,6 +38,7 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
 CFLAGS += --specs=nosys.specs
+#used for semihosting debug
 #CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
@@ -75,6 +76,7 @@ CFLAGS += -DDEBUG_EXTI4_MRD
 CFLAGS += -DDEBUG_EXTI4_DATA_OUT
 #CFLAGS += -DDEBUG_EXTI4_TRISTATED
 CFLAGS += -DDEBUG_EXTI4_END
+CFLAGS += -DDEBUG_EXTI4_RAM_WRITE
 #CFLAGS += -DDEBUG_SPURIOUS_EVENT_MREQ
 #CFLAGS += -DDISABLE_ALL_BUT_SHOW_MAIN_THREAD_ACTIVITY
 

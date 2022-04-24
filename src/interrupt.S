@@ -1,4 +1,4 @@
-#define _VER_ 7.5
+#define _VER_ 7.6
 
 #include "main.h"
 
@@ -12,8 +12,11 @@
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
 	.global rom_base
+        .global low_64k_base
+	.global high_64k_base
 	.global main_thread_command
 	.global main_thread_data
+
 
 
 /* REGISTERS */
@@ -73,7 +76,7 @@
 
 .macro unrolled_exit_EXTI4
 #if defined(DEBUG_EXTI4_END)
-        delay 8
+        delay 2
         vstr     reg_led_off,[r12,ODR]
 #endif
         dsb
@@ -201,12 +204,6 @@ rom_base:
 
 
 .section .data
-// rom_bank must immediately follow romdis
-//romdis:
-//	.word   0x00000000
-//rom_bank:
-//       .word   0x00000000
-
 
 // main_thread_data must immediately follow main_thread_command
 main_thread_command:
@@ -214,11 +211,16 @@ main_thread_command:
 main_thread_data:
 	.word	0x00000000			// command arg
 
-.section .bss
-  //      .lcomm  EXTI1_tempvar,4
-  //      .lcomm  EXTI2_tempvar,4
-  //      .lcomm  EXTI4_tempvar,4
+.section ccmram
+low_64k_base:
+	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
+	// is defined in stm32_flash.ld
+       //.lcomm low_64k_base,0x10000               
 
+.section .bss
+        .lcomm high_64k_base,0x10000                
+
+  //      .lcomm  EXTI4_tempvar,4
 
 
 //PA0-PA2 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
@@ -246,7 +248,6 @@ main_thread_data:
 
 .section .text
 
-
 .type init_fpu_regs, %function
 .align 4
 .thumb_func
@@ -269,8 +270,8 @@ init_fpu_regs:
 	mov32	r0,GPIOA_BASE
 	vmov	reg_gpioa_base,r0
 
-	//mov32	r0, high_64k_base
-	//vmov	reg_high_64k_base,r0
+	mov32	r0, high_64k_base
+	vmov	reg_high_64k_base,r0
 
 	mov32	r0, EXTI
 	vmov	reg_exti_base,r0
@@ -322,40 +323,55 @@ init_fpu_regs:
 .thumb_func
 EXTI4_IRQHandler:
         vmov	r12,reg_gpioa_base
-        vmov	r2,reg_gpiob_base
 #ifdef DEBUG_EXTI4_START
         vstr     reg_bit0_high,[r12,ODR]
 #endif
        
-clear_pending_iorq_int:                         // musi byt jinak nezachitime vsechny edge
+clear_pending_iorq_int:                         // musi byt jinak nezachytime vsechny edge
 	vmov	r3,reg_exti_base		// s7 = EXTI
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
-        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the addres
+        vmov	r2,reg_gpiob_base
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
         tst     r0,#_MREQ_MASK
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
-        bne     end_EXTI4_IRQHandler
-/* 
-         //0x8000-0xffff
+        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+        beq      read_memory
+ write_memory:                                                       //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
-               
-        sub     r0, r1, #0x8000
-*/   
+
+#ifdef DEBUG_EXTI4_RAM_WRITE
+        vstr     reg_bit1_high,[r12,ODR]
+#endif
+        vmov r3, reg_high_64k_base
+	delay 10
+
+	ldr	r1,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
+	lsrs	r1,r1,#8
+	strb	r1,[r3,r0]
+        b     end_EXTI4_IRQHandler
+
+ read_memory:       
+        tst     r1,#0x8000
+        bne     rom
+        vmov  r3, reg_high_64k_base
+        b read
+
+ rom:
         sub     r0, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
 	cmp     r0, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
         bcs.n     end_EXTI4_IRQHandler
-  
+        vmov	r3,reg_rom_base
 
+read:
 #ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
 #endif
-        vmov	r3,reg_rom_base
-        ldrb    r0,[r3,r0]              // get the byte from a 16K ROM
+        ldrb    r0,[r3,r0]              // get the byte from a 16K ROM or RAM
         lsls    r0,r0, #8
         
         vmov	r1,reg_moder_dataout
@@ -402,15 +418,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachitime vs
 #endif
         clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
 
-end_EXTI4_IRQHandler:
-       
-
-/* 
-#ifdef DEBUG_EXTI4_END
-        delay 8
-        vstr     reg_led_off,[r12,ODR]
-#endif
- */       
+end_EXTI4_IRQHandler:           
        
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
@@ -422,10 +430,17 @@ end_EXTI4_IRQHandler:
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
 unrolled_exit_EXTI4
-/*
-        dsb                                     //nemazat! bez toho je interupt casteji nez jen na sestupnou hranu!!!!!!
-        bx      lr
-*/
 
 
+write_to_ram:
+#ifdef DEBUG_EXTI4_RAM_WRITE
+        vstr     reg_zero,[r12,ODR]
+#endif
+        vmov r3, reg_high_64k_base
+	delay 10
 
+	ldr	r1,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
+	lsrs	r1,r1,#8
+	strb	r1,[r3,r0]
+
+	unrolled_exit_EXTI4
