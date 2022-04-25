@@ -1,4 +1,4 @@
-#define _VER_ 7.9
+#define _VER_ 8.0
 
 #include "main.h"
 
@@ -339,7 +339,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
-        beq      read_memory
+        beq      rom //read_memory
  write_memory: 
         b     end_EXTI4_IRQHandler                                            //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
