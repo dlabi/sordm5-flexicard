@@ -1,4 +1,4 @@
-#define _VER_ 7.8
+#define _VER_ 7.9
 
 #include "main.h"
 
@@ -359,6 +359,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
  read_memory:       
         tst     r1,#0x8000
         bne     rom
+        b     end_EXTI4_IRQHandler
         vmov  r3, reg_high_64k_base
         b read
 
