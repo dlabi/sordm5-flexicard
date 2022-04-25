@@ -1,4 +1,4 @@
-#define _VER_ 8.1
+#define _VER_ 8.2
 
 #include "main.h"
 
@@ -341,7 +341,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         beq      read_memory
  write_memory: 
-        b     end_EXTI4_IRQHandler                                            //0x8000-0xffff
+                                                    //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
 
