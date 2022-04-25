@@ -1,4 +1,4 @@
-#define _VER_ 7.6
+#define _VER_ 7.7
 
 #include "main.h"
 
@@ -337,10 +337,11 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
-        tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not exit INT
+        tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         beq      read_memory
- write_memory:                                                       //0x8000-0xffff
+ write_memory: 
+                                                    //0x8000-0xffff
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
 
@@ -350,9 +351,9 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         vmov r3, reg_high_64k_base
 	delay 10
 
-	ldr	r1,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
-	lsrs	r1,r1,#8
-	strb	r1,[r3,r0]
+	ldr	r0,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
+	lsrs	r0,r0,#8
+	strb	r0,[r3,r1]
         b     end_EXTI4_IRQHandler
 
  read_memory:       
@@ -362,8 +363,8 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         b read
 
  rom:
-        sub     r0, r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r0, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
+        sub     r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
+	cmp     r1, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
         bcs.n     end_EXTI4_IRQHandler
         vmov	r3,reg_rom_base
 
@@ -371,7 +372,7 @@ read:
 #ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
 #endif
-        ldrb    r0,[r3,r0]              // get the byte from a 16K ROM or RAM
+        ldrb    r0,[r3,r1]              // get the byte from a 16K ROM or RAM
         lsls    r0,r0, #8
         
         vmov	r1,reg_moder_dataout
@@ -431,16 +432,3 @@ end_EXTI4_IRQHandler:
 
 unrolled_exit_EXTI4
 
-
-write_to_ram:
-#ifdef DEBUG_EXTI4_RAM_WRITE
-        vstr     reg_zero,[r12,ODR]
-#endif
-        vmov r3, reg_high_64k_base
-	delay 10
-
-	ldr	r1,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
-	lsrs	r1,r1,#8
-	strb	r1,[r3,r0]
-
-	unrolled_exit_EXTI4
