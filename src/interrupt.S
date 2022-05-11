@@ -1,4 +1,4 @@
-#define _VER_ 8.3
+#define _VER_ 8.4
 
 #include "main.h"
 
@@ -327,9 +327,9 @@ EXTI4_IRQHandler:
         vstr     reg_bit0_high,[r12,ODR]
 #endif
        
-clear_pending_iorq_int:                         // musi byt jinak nezachytime vsechny edge
-	vmov	r3,reg_exti_base		// s7 = EXTI
-	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+clear_pending_iorq_int:                                 // musi byt jinak nezachytime vsechny edge
+	vmov	r3,reg_exti_base		        // s7 = EXTI
+	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
@@ -337,11 +337,11 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
-        tst     r0,#_MRD_MASK                          // check MRD, if log. 0 then we present data, if not write to RAM
+        tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         beq      read_memory
- write_memory: 
-                                                    //0x8000-0xffff
+ 
+ write_memory:                                          // 0x8000-0xffff                                                       
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         beq     end_EXTI4_IRQHandler
 
@@ -351,7 +351,7 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
         vmov r3, reg_high_64k_base
 	delay 10
 
-	ldr	r0,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
+	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8
 	strb	r0,[r3,r1]
         b     end_EXTI4_IRQHandler
@@ -359,26 +359,32 @@ clear_pending_iorq_int:                         // musi byt jinak nezachytime vs
  read_memory:       
         tst     r1,#0x8000
         beq     rom
-        vmov  r3, reg_high_64k_base
+        vmov  r3, reg_high_64k_base                     // read from 8000, access RAM
         b read
 
- rom:
-        sub     r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r1, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
-        bcs.n     end_EXTI4_IRQHandler
-        vmov	r3,reg_rom_base
-
+ rom:                                                   // read from 0-7fff, test if we are interested
+        vmov	r3,reg_rom_base                         
+        ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
+        cmp     r0,#1
+        IT EQ
+        subeq   r1,#0x2000                              // offset address from 0
+        ITE GT                                          
+        movgt   r0,#0x4000                              // type 02
+        movle   r0,#0x2000                              // type 00
+        cmp     r1,r0                                   // test if we are in rom range
+        bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
+       
 read:
 #ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
 #endif
-        ldrb    r0,[r3,r1]              // get the byte from a 16K ROM or RAM
+        ldrb    r0,[r3,r1]                              // get the byte from a 16K ROM or RAM
         lsls    r0,r0, #8
         
         vmov	r1,reg_moder_dataout
 
-        str     r0,[r2, B_TO_D_OFFSET + ODR]    // GPIOD ODR
-        str     r1,[r2, B_TO_D_OFFSET + MODER]  // MODER set to outputs
+        str     r0,[r2, B_TO_D_OFFSET + ODR]            // GPIOD ODR
+        str     r1,[r2, B_TO_D_OFFSET + MODER]          // MODER set to outputs
 
 #ifdef DEBUG_EXTI4_DATA_OUT
         vstr     reg_led_on,[r12,ODR]
@@ -395,40 +401,40 @@ read:
      //   str     r0,[r3,IMR]             // EXTI_IMR
         vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
 
-        set_EXTI4_RTSR                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
-        vstr    reg_bit4_high,[r3,EMR] // EXTI_EMR - wait for an event rather than an interrupt on PC4
+        set_EXTI4_RTSR                                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
+        vstr    reg_bit4_high,[r3,EMR]                  // EXTI_EMR - wait for an event rather than an interrupt on PC4
        
 
 
         vmov	r1,reg_moder_datain
 
-	dsb             // not entirely sure if this is required
-        sev             // set the event register
-        wfe             // clear the event register
+	dsb                                             // not entirely sure if this is required
+        sev                                             // set the event register
+        wfe                                             // clear the event register
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe             // wait for the positive edge of _MREQ
+        wfe                                             // wait for the positive edge of _MREQ
 
         //databus_read_extra_delay
 
 // _MREQ should have just gone high here
-        str     r1,[r2, B_TO_D_OFFSET + MODER]   // tristate databus
+        str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
 
 #ifdef DEBUG_EXTI4_TRISTATED
         movs    r0,#0xc5
         str     r0,[r12, ODR]
 #endif
-        clear_EXTI4_RTSR //zakaz INT na nabeznou hranu, pouziva r3
+        clear_EXTI4_RTSR                                //zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:           
        
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
-        ldr     r0,[r3,IMR]     // EXTI_IMR
-        orr     r0,#0x0010      // reenable PC4 interrupts
+        ldr     r0,[r3,IMR]                             // EXTI_IMR
+        orr     r0,#0x0010                              // reenable PC4 interrupts
 
         movs    r1,#EXTI_Line4
-        str     r1,[r3,PR]                      // EXTI_PR 
-        str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
+        str     r1,[r3,PR]                              // EXTI_PR 
+        str     r0,[r3,IMR]                             // EXTI_IMR	// I think you need to reenable after the clear
 
 unrolled_exit_EXTI4
 
