@@ -484,7 +484,7 @@ end_EXTI15_10_IRQHandler:
         str     r1,[r3,PR]                      // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
-#ifdef(DEBUG_EXTI14_END)
+#ifdef DEBUG_EXTI14_END
         delay 2
         vstr     reg_led_off,[r12,ODR]
 #endif
