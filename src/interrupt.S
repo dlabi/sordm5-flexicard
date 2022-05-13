@@ -1,4 +1,4 @@
-#define _VER_ 8.4
+#define _VER_ 8.5
 
 #include "main.h"
 
@@ -8,7 +8,7 @@
         .fpu fpv4-sp-d16
 	.thumb
 
-	.global EXTI1_IRQHandler
+	.global EXTI15_10_IRQHandler
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
 	.global rom_base
@@ -16,6 +16,7 @@
 	.global high_64k_base
 	.global main_thread_command
 	.global main_thread_data
+        .global mem_mode
 
 
 
@@ -179,6 +180,7 @@ rom_base:
         .equ    EXTI_Line1      ,       0x00002
         .equ    EXTI_Line2      ,       0x00004
         .equ    EXTI_Line4      ,       0x00010
+        .equ    EXTI_Line14      ,      0x40000
         .equ    EXTI            ,       0x40013c00
         .equ    EXTI_IMR        ,       EXTI + 0x00
         .equ    EXTI_PR         ,       EXTI + 0x14
@@ -197,10 +199,12 @@ rom_base:
 #define	DATA_IN_MODE	0x00000020
 
 #define _MREQ_MASK	0x0010
+#define _EXIOA_MASK     0x0100
 #define _MRD_MASK	0x0800
 #define _MWR_MASK	0x1000
 #define _IORD_MASK	0x2000
 #define _IOWR_MASK	0x4000
+
 
 
 .section .data
@@ -210,6 +214,8 @@ main_thread_command:
 	.word	0x00000000			// command word
 main_thread_data:
 	.word	0x00000000			// command arg
+mem_mode:
+        .byte   0x00                            // memory mode
 
 .section ccmram
 low_64k_base:
@@ -332,7 +338,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
 	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR
         tst     r0,#_MREQ_MASK
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
@@ -438,3 +444,49 @@ end_EXTI4_IRQHandler:
 
 unrolled_exit_EXTI4
 
+
+// _IORW interrupt -ve edge
+.type EXTI15_10_IRQHandler, %function
+EXTI15_10_IRQHandler:
+        vmov	   r12,reg_gpioa_base
+#ifdef DEBUG_EXTI14_START
+        vstr       reg_bit0_high,[r12,ODR]
+#endif                      
+
+clear_pending_iorq_int14:                         // musi byt jinak nezachytime vsechny edge
+	vmov	r3,reg_exti_base		// s7 = EXTI
+	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+
+        vmov	r2,reg_gpiob_base
+        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
+        tst     r0,#_IOWR_MASK
+        bne     end_EXTI15_10_IRQHandler                 //exit spurious IRQ
+
+	tst	r0,_EXIOA_MASK
+	bne.n	end_EXTI15_10_IRQHandler
+
+	ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+	tst     r1, #0x6c
+        bne.n	end_EXTI15_10_IRQHandler
+
+	ldr	r0,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
+	lsrs	r0,r0,#8
+        mov     r1, mem_mode
+        str     r0,[r1]
+
+end_EXTI15_10_IRQHandler:
+        vmov	r3,reg_exti_base
+        ldr     r3,=EXTI
+        ldr     r0,[r3,IMR]          // EXTI_IMR
+        orr     r0,#EXTI_Line14      // reenable PB14 interrupts
+
+        movs    r1,#EXTI_Line14
+        str     r1,[r3,PR]                      // EXTI_PR 
+        str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
+
+#ifdef(DEBUG_EXTI14_END)
+        delay 2
+        vstr     reg_led_off,[r12,ODR]
+#endif
+        dsb
+        bx      lr

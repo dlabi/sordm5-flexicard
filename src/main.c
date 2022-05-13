@@ -16,6 +16,7 @@ extern void init_fpu_regs(void);
 // Must be volatile to prevent optimiser doing stuff
 extern volatile uint32_t main_thread_command;
 extern volatile uint32_t main_thread_data;
+extern volatile uint8_t mem_mode;
 
 
 
@@ -170,9 +171,10 @@ void SD_NVIC_Configuration(void)
         NVIC_Init(&NVIC_InitStructure);
 }
 
-
+// EXTI15_10_IRQn 	EXTI15_10_IRQHandler 	Handler for pins connected to line 10 to 15
+// https://stm32f4-discovery.net/2014/08/stm32f4-external-interrupts-tutorial/
 // _IORQ interrupt
-void config_PC1_int(void) {
+void config_PB14_int(void) {
         EXTI_InitTypeDef EXTI_InitStruct;
         NVIC_InitTypeDef NVIC_InitStruct;
 
@@ -180,10 +182,10 @@ void config_PC1_int(void) {
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
         /* Tell system that you will use PC2 for EXTI_Line2 */
-        SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOC, EXTI_PinSource1);
+        SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOB, EXTI_PinSource14);
 
         /* PC2 is connected to EXTI_Line2 */
-        EXTI_InitStruct.EXTI_Line = EXTI_Line1;
+        EXTI_InitStruct.EXTI_Line = EXTI_Line14;
         /* Enable interrupt */
         EXTI_InitStruct.EXTI_LineCmd = ENABLE;
         /* Interrupt mode */
@@ -196,7 +198,7 @@ void config_PC1_int(void) {
 
         /* Add IRQ vector to NVIC */
         /* PC0 is connected to EXTI_Line0, which has EXTI1_IRQn vector */
-        NVIC_InitStruct.NVIC_IRQChannel = EXTI1_IRQn;
+        NVIC_InitStruct.NVIC_IRQChannel = EXTI15_10_IRQn;
         /* Set priority */
         NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x00;
         /* Set sub priority */
@@ -243,14 +245,14 @@ void config_PC4_int(void) {
         NVIC_Init(&NVIC_InitStruct);
 }
 
-/* MRD -> PB11, MWR -> PB12 */
+/* EXIOA -> PB8, EXIOB -> PB9, MRD -> PB11, MWR -> PB12, IOWR -> PB14 */
 void config_gpio_portb(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOB Periph clock enable */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_14;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -402,7 +404,7 @@ int __attribute__((optimize("O0")))  main(void) {
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); 
 
 	SysTick->CTRL  = 0;
-	config_PC1_int();
+	config_PB14_int();
 	config_PC4_int();
 
         SD_NVIC_Configuration(); 
