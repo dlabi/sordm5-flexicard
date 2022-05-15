@@ -1,4 +1,4 @@
-#define _VER_ 8.9
+#define _VER_ 9.0
 
 #include "main.h"
 
@@ -180,7 +180,7 @@ rom_base:
         .equ    EXTI_Line1      ,       0x00002
         .equ    EXTI_Line2      ,       0x00004
         .equ    EXTI_Line4      ,       0x00010
-        .equ    EXTI_Line14      ,      0x40000
+        .equ    EXTI_Line14      ,      0x2000
         .equ    EXTI            ,       0x40013c00
         .equ    EXTI_IMR        ,       EXTI + 0x00
         .equ    EXTI_PR         ,       EXTI + 0x14
@@ -483,8 +483,7 @@ end_EXTI15_10_IRQHandler:
         ldr     r0,[r3,IMR]          // EXTI_IMR
         orr     r0,#EXTI_Line14      // reenable PB14 interrupts
 
-        movs    r1,#EXTI_Line14
-        str     r1,[r3,PR]                      // EXTI_PR 
+        vstr	reg_bit14_high,[r3,PR]                     // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
 #ifdef DEBUG_EXTI14_END
