@@ -1,4 +1,4 @@
-#define _VER_ 8.7
+#define _VER_ 8.8
 
 #include "main.h"
 
@@ -370,22 +370,19 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
 
  rom: 
  
- /*                                                   // read from 0-7fff, test if we are interested
+                                                  // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
         ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
+        sub     r1, #0x2000                             // offset address from 0
         cmp     r0,#1
         IT EQ
-        subeq   r1,#0x2000                              // offset address from 0
+        subeq   r1,#0x2000                              // rom type 01 from 4000: offset address from 0
         ITE GT                                          
         movgt   r0,#0x4000                              // type 02
         movle   r0,#0x2000                              // type 00
         cmp     r1,r0                                   // test if we are in rom range
         bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
-*/ 
-        sub     r1, #0x2000                           // je adr mezi 0x2000-0x6fff ?
-	cmp     r1, #0x2000                             //#0x2000 pro konec na 0x3fff, #0x5000 pro konec na 0x6fff      
-        bcs.n     end_EXTI4_IRQHandler
-        vmov	r3,reg_rom_base      
+
 read:
 #ifdef DEBUG_EXTI4_MRD
         vstr     reg_bit1_high,[r12,ODR]
