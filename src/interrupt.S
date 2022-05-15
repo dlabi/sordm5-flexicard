@@ -1,4 +1,4 @@
-#define _VER_ 8.6
+#define _VER_ 8.7
 
 #include "main.h"
 
@@ -338,7 +338,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
 	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR
+        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR
         tst     r0,#_MREQ_MASK
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
@@ -464,7 +464,7 @@ clear_pending_iorq_int14:                         // musi byt jinak nezachytime 
 	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
 
         vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR get mreq
+        ldr     r0,[r2, IDR]            // GPIOB->IDR get mreq
         tst     r0,#_IOWR_MASK
         bne     end_EXTI15_10_IRQHandler                 //exit spurious IRQ
 
