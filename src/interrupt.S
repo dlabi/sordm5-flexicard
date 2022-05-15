@@ -180,7 +180,7 @@ rom_base:
         .equ    EXTI_Line1      ,       0x00002
         .equ    EXTI_Line2      ,       0x00004
         .equ    EXTI_Line4      ,       0x00010
-        .equ    EXTI_Line14      ,      0x2000
+        .equ    EXTI_Line14      ,      0x4000
         .equ    EXTI            ,       0x40013c00
         .equ    EXTI_IMR        ,       EXTI + 0x00
         .equ    EXTI_PR         ,       EXTI + 0x14
@@ -270,7 +270,7 @@ init_fpu_regs:
 	mov32	r0,GPIOC_BASE
 	vmov	reg_gpioc_base,r0
 
-	movs	r0,#0b100000000000000
+	movs	r0,#0b100 0000 0000 0000
 	vmov	reg_bit14_high,r0
 
 	mov32	r0,GPIOA_BASE
