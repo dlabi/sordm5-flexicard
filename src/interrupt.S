@@ -1,4 +1,4 @@
-#define _VER_ 8.8
+#define _VER_ 8.9
 
 #include "main.h"
 
@@ -25,7 +25,7 @@
 #define reg_bit0_high	s1
 #define reg_bit1_high	s2
 #define reg_gpioc_base	s3
-#define reg_bit2_high	s4
+#define reg_bit14_high	s4
 
 #define reg_gpioa_base	s5
 #define reg_high_64k_base	s6
@@ -270,8 +270,8 @@ init_fpu_regs:
 	mov32	r0,GPIOC_BASE
 	vmov	reg_gpioc_base,r0
 
-	movs	r0,#4
-	vmov	reg_bit2_high,r0
+	movs	r0,#0b100000000000000
+	vmov	reg_bit14_high,r0
 
 	mov32	r0,GPIOA_BASE
 	vmov	reg_gpioa_base,r0
@@ -335,7 +335,7 @@ EXTI4_IRQHandler:
        
 clear_pending_iorq_int:                                 // musi byt jinak nezachytime vsechny edge
 	vmov	r3,reg_exti_base		        // s7 = EXTI
-	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
+	vstr	reg_bit4_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR
@@ -458,7 +458,7 @@ EXTI15_10_IRQHandler:
 
 clear_pending_iorq_int14:                         // musi byt jinak nezachytime vsechny edge
 	vmov	r3,reg_exti_base		// s7 = EXTI
-	vstr	reg_bit0_high,[r3,PR]	        // clear interrupt
+	vstr	reg_bit14_high,[r3,PR]	        // clear interrupt
 
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, IDR]            // GPIOB->IDR get mreq

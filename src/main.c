@@ -181,10 +181,10 @@ void config_PB14_int(void) {
         /* Enable clock for SYSCFG */
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
-        /* Tell system that you will use PC2 for EXTI_Line2 */
+        /* Tell system that you will use PB14 for EXTI_Line14 */
         SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOB, EXTI_PinSource14);
 
-        /* PC2 is connected to EXTI_Line2 */
+        /* PB14 is connected to EXTI_Line14 */
         EXTI_InitStruct.EXTI_Line = EXTI_Line14;
         /* Enable interrupt */
         EXTI_InitStruct.EXTI_LineCmd = ENABLE;
@@ -220,7 +220,7 @@ void config_PC4_int(void) {
 
         SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOC, EXTI_PinSource4);
 
-        /* PC2 is connected to EXTI_Line2 */
+        /* PC4 is connected to EXTI_Line4 */
         EXTI_InitStruct.EXTI_Line = EXTI_Line4;
         /* Enable interrupt */
         EXTI_InitStruct.EXTI_LineCmd = ENABLE;
@@ -233,7 +233,7 @@ void config_PC4_int(void) {
         EXTI_Init(&EXTI_InitStruct);
 
         /* Add IRQ vector to NVIC */
-        /* PC0 is connected to EXTI_Line0, which has EXTI4_IRQn vector */
+        /* PC4 is connected to EXTI_Line4, which has EXTI4_IRQn vector */
         NVIC_InitStruct.NVIC_IRQChannel = EXTI4_IRQn;
         /* Set priority */
         NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x01;
