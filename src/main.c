@@ -362,8 +362,6 @@ void config_backup_sram(void) {
 
 
 
-
-
 // probably dont need to turn the optimiser off, but it kept on annoying me at the time
 int __attribute__((optimize("O0")))  main(void) {
 
