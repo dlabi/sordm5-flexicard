@@ -270,7 +270,7 @@ init_fpu_regs:
 	mov32	r0,GPIOC_BASE
 	vmov	reg_gpioc_base,r0
 
-	movs	r0,#0b100 0000 0000 0000
+	movs	r0,#0b100000000000000
 	vmov	reg_bit14_high,r0
 
 	mov32	r0,GPIOA_BASE
