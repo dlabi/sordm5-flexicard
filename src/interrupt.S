@@ -1,4 +1,4 @@
-#define _VER_ 9.6
+#define _VER_ 9.7
 
 #include "main.h"
 
@@ -347,10 +347,20 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         beq      read_memory
  
- write_memory:                                          // 0x8000-0xffff                                                       
+ write_check:
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
-        beq     end_EXTI4_IRQHandler
-
+        bne    write_memory
+        mov    r0, mem_mode
+        ldrb    r0,[r0]
+        tst     r0, #1                                  //1 - RAM
+        bne     no_rom                                  // 2000-                                                              
+        b      end_EXTI4_IRQHandler   
+no_rom:
+        cmp     r1,#0x2000
+        blo     end_EXTI4_IRQHandler                    //0-1fff exit
+        cmp     r1,#0x7000
+        bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
+write_memory:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr     reg_bit1_high,[r12,ODR]
 #endif
@@ -481,8 +491,8 @@ clear_pending_iorq_int14:                         // musi byt jinak nezachytime 
 #ifdef DEBUG_EXTI14_DATA_OUT
         tst    r0,#1
         ite      eq
-        vstreq     reg_led_off,[r12,ODR] //0
-        vstrne     reg_led_on,[r12,ODR]  //1
+        vstreq     reg_led_off,[r12,ODR] //0 ROM
+        vstrne     reg_led_on,[r12,ODR]  //1 RAM
 #endif
 
 end_EXTI15_10_IRQHandler:
