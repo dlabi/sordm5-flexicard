@@ -1,4 +1,4 @@
-#define _VER_ 9.7
+#define _VER_ 9.8
 
 #include "main.h"
 
@@ -345,7 +345,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]
-        mov    r0, mem_mode
+        ldr    r0, =mem_mode
         ldrb    r0,[r0]            // GPIOE->IDR get the address
         beq      read_memory
  
@@ -488,8 +488,8 @@ clear_pending_iorq_int14:                         // musi byt jinak nezachytime 
 #endif
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
         lsrs	r0,r0,#8
-        mov     r1, mem_mode
-        str     r0,[r1]
+        ldr     r1, =mem_mode
+        strb     r0,[r1]
 #ifdef DEBUG_EXTI14_DATA_OUT
         tst    r0,#1
         ite      eq

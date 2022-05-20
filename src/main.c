@@ -417,6 +417,8 @@ int __attribute__((optimize("O0")))  main(void) {
 
         blink_pa6_pa7(2);
 
+        mem_mode = 0;
+
 #ifdef DISABLE_ALL_BUT_SHOW_MAIN_THREAD_ACTIVITY
 	while(1) {
 		GPIOA->ODR = 1;
