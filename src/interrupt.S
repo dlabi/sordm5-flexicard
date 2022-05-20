@@ -344,15 +344,15 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
 
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
-        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+        ldr     r1,[r2, B_TO_E_OFFSET + IDR]
+        mov    r0, mem_mode
+        ldrb    r0,[r0]            // GPIOE->IDR get the address
         beq      read_memory
  
  write_check:
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         bne    write_memory
-        mov    r0, mem_mode
-        ldrb    r0,[r0]
-        tst     r0, #1                                  //1 - RAM
+        tst     r0, #1                                  //1 - RAM 0-ROM
         bne     no_rom                                  // 2000-                                                              
         b      end_EXTI4_IRQHandler   
 no_rom:
@@ -372,7 +372,9 @@ write_memory:
 	strb	r0,[r3,r1]
         b     end_EXTI4_IRQHandler
 
- read_memory:       
+ read_memory:
+        tst     r0, #1                                  //1-RAM 0-ROM
+        beq     rom
         tst     r1,#0x8000
         beq     rom
         vmov  r3, reg_high_64k_base                     // read from 8000, access RAM
