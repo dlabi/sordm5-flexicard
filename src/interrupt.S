@@ -1,4 +1,4 @@
-#define _VER_ 9.8
+#define _VER_ 9.9
 
 #include "main.h"
 
@@ -344,45 +344,46 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
 
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
-        ldr     r1,[r2, B_TO_E_OFFSET + IDR]
-        ldr    r0, =mem_mode
-        ldrb    r0,[r0]            // GPIOE->IDR get the address
-        beq      read_memory
+        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+        ldr     r0, =mem_mode
+        ldr     r0,[r0]            
+        beq     read_memory
  
  write_check:
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
-        bne    write_memory
+        bne     write_memory
         tst     r0, #1                                  //1 - RAM 0-ROM
         bne     no_rom                                  // 2000-                                                              
-        b      end_EXTI4_IRQHandler   
+        b       end_EXTI4_IRQHandler   
 no_rom:
         cmp     r1,#0x2000
         blo     end_EXTI4_IRQHandler                    //0-1fff exit
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
+
 write_memory:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr     reg_bit1_high,[r12,ODR]
 #endif
-        vmov r3, reg_high_64k_base
+        vmov    r3, reg_high_64k_base
 	delay 10
 
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8
 	strb	r0,[r3,r1]
-        b     end_EXTI4_IRQHandler
+        b       end_EXTI4_IRQHandler
 
  read_memory:
         tst     r0, #1                                  //1-RAM 0-ROM
         beq     rom
         tst     r1,#0x8000
         beq     rom
-        vmov  r3, reg_high_64k_base                     // read from 8000, access RAM
-        b read
+        vmov    r3, reg_high_64k_base                     // read from 8000, access RAM
+        b       read
 
  rom: 
  
-                                                  // read from 0-7fff, test if we are interested
+                                                        // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
         ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
         sub     r1, #0x2000                             // offset address from 0
@@ -425,8 +426,6 @@ read:
         set_EXTI4_RTSR                                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
         vstr    reg_bit4_high,[r3,EMR]                  // EXTI_EMR - wait for an event rather than an interrupt on PC4
        
-
-
         vmov	r1,reg_moder_datain
 
 	dsb                                             // not entirely sure if this is required
@@ -468,14 +467,14 @@ EXTI15_10_IRQHandler:
         vstr       reg_bit0_high,[r12,ODR]
 #endif                      
 
-clear_pending_iorq_int14:                         // musi byt jinak nezachytime vsechny edge
-	vmov	r3,reg_exti_base		// s7 = EXTI
-	vstr	reg_bit14_high,[r3,PR]	        // clear interrupt
+clear_pending_iorq_int14:                               // musi byt jinak nezachytime vsechny edge
+	vmov	r3,reg_exti_base		        // s7 = EXTI
+	vstr	reg_bit14_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, IDR]            // GPIOB->IDR get mreq
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mreq
         tst     r0,#_IOWR_MASK
-        bne     end_EXTI15_10_IRQHandler                 //exit spurious IRQ
+        bne     end_EXTI15_10_IRQHandler                //exit spurious IRQ
 
 //	tst	r0,_EXIOA_MASK
 //	bne.n	end_EXTI15_10_IRQHandler
@@ -484,17 +483,18 @@ clear_pending_iorq_int14:                         // musi byt jinak nezachytime 
 	cmp     r1, #0x6c
         bne.n	end_EXTI15_10_IRQHandler
 #ifdef DEBUG_EXTI14_6C
-        vstr     reg_bit1_high,[r12,ODR]
+        vstr    reg_bit1_high,[r12,ODR]
 #endif
-	ldr	r0,[r2, B_TO_D_OFFSET + IDR]     // GPIOD read databus
-        lsrs	r0,r0,#8
+	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
+        lsrs	r0,r0,#8                                // PD8-PD15 -> shift it to 0
         ldr     r1, =mem_mode
-        strb     r0,[r1]
+        strb    r0,[r1]
+
 #ifdef DEBUG_EXTI14_DATA_OUT
-        tst    r0,#1
-        ite      eq
-        vstreq     reg_led_off,[r12,ODR] //0 ROM
-        vstrne     reg_led_on,[r12,ODR]  //1 RAM
+        tst     r0,#1
+        ite     eq
+        vstreq  reg_led_off,[r12,ODR] //0 ROM
+        vstrne  reg_led_on,[r12,ODR]  //1 RAM
 #endif
 
 end_EXTI15_10_IRQHandler:
