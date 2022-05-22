@@ -1,4 +1,4 @@
-#define _VER_ 9.9
+#define _VER_ 10.0
 
 #include "main.h"
 
@@ -374,16 +374,15 @@ write_memory:
         b       end_EXTI4_IRQHandler
 
  read_memory:
+        tst     r1,#0x8000
+        bne     ram
         tst     r0, #1                                  //1-RAM 0-ROM
         beq     rom
-        tst     r1,#0x8000
-        beq     rom
+ram:
         vmov    r3, reg_high_64k_base                     // read from 8000, access RAM
         b       read
 
- rom: 
- 
-                                                        // read from 0-7fff, test if we are interested
+rom:                                                    // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
         ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
         sub     r1, #0x2000                             // offset address from 0
