@@ -431,11 +431,11 @@ int __attribute__((optimize("O0")))  main(void) {
 	while(1) {
                 if (mem_mode == 1){
                 
-                GPIOA->ODR = GPIOA->IDR | 0x40;
+                GPIOA->ODR = GPIOA->IDR & 0x7f;         //rozsvit led
                 }
                 else {
 
-                  GPIOA->ODR = GPIOA->IDR & 0xbf;      
+                  GPIOA->ODR = GPIOA->IDR | 0x80;      //zhasni led
                 }
          /*               
          if ((GPIOB->IDR & GPIO_Pin_11) == 0) 

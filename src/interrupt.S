@@ -1,4 +1,4 @@
-#define _VER_ 10.1
+#define _VER_ 10.2
 
 #include "main.h"
 
