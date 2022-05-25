@@ -429,6 +429,14 @@ int __attribute__((optimize("O0")))  main(void) {
 #endif
 		
 	while(1) {
+                if (mem_mode == 1){
+                
+                GPIOA->ODR = GPIOA->IDR | 0x40;
+                }
+                else {
+
+                  GPIOA->ODR = GPIOA->IDR & 0xbf;      
+                }
          /*               
          if ((GPIOB->IDR & GPIO_Pin_11) == 0) 
          {       
