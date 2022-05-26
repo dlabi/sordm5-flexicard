@@ -437,8 +437,9 @@ int __attribute__((optimize("O0")))  main(void) {
                 else {
 
                   GPIOA->ODR = GPIOA->IDR | 0xc0;      //zhasni led
-                  */
+                 
                 }
+                 */
          /*               
          if ((GPIOB->IDR & GPIO_Pin_11) == 0) 
          {       
