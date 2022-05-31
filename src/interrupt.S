@@ -1,4 +1,4 @@
-#define _VER_ 10.3
+#define _VER_ 10.4
 
 #include "main.h"
 
@@ -374,6 +374,9 @@ write_memory:
         b       end_EXTI4_IRQHandler
 
  read_memory:
+#ifdef DEBUG_EXTI4_RAM_TEST
+        vstr     reg_bit0_high,[r12,ODR]
+#endif
         tst     r1,#0x8000
         bne     ram
         tst     r0, #1                                  //1-RAM 0-ROM
