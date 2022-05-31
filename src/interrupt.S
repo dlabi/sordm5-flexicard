@@ -1,4 +1,4 @@
-#define _VER_ 10.4
+#define _VER_ 10.5
 
 #include "main.h"
 
@@ -379,6 +379,7 @@ write_memory:
 #endif
         tst     r1,#0x8000
         bne     ram
+        dsb
         tst     r0, #1                                  //1-RAM 0-ROM
         beq     rom
 ram:
