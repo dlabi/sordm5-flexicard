@@ -1,4 +1,4 @@
-#define _VER_ 10.2
+#define _VER_ 10.3
 
 #include "main.h"
 
@@ -379,7 +379,13 @@ write_memory:
         tst     r0, #1                                  //1-RAM 0-ROM
         beq     rom
 ram:
-        vmov    r3, reg_high_64k_base                     // read from 8000, access RAM
+        vmov    r3, reg_high_64k_base                   // read from RAM
+#ifdef DEBUG_EXTI4_RAM_READ
+        vstr     reg_led_on,[r12,ODR]
+#endif
+        //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
+        cmp     r1,#0x2000
+        blo     end_EXTI4_IRQHandler                    
         b       read
 
 rom:                                                    // read from 0-7fff, test if we are interested
