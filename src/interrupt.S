@@ -1,4 +1,4 @@
-#define _VER_ 10.7
+#define _VER_ 10.8
 
 #include "main.h"
 
@@ -380,7 +380,7 @@ read_memory:
         tst     r1,#0x8000
         bne     ram
         ldr     r0, =mem_mode
-        ldr     r0,[r0] 
+        mov     r0, #1 //[r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
         beq     rom
 ram:
