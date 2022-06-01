@@ -1,4 +1,4 @@
-#define _VER_ 10.6
+#define _VER_ 10.7
 
 #include "main.h"
 
@@ -349,7 +349,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         ldr     r0,[r0]            
         beq     read_memory
  
- write_check:
+write_check:
         tst     r1,#0x8000                              // check A15. If it is high. We are interested
         bne     write_memory
         tst     r0, #1                                  //1 - RAM 0-ROM
@@ -373,7 +373,7 @@ write_memory:
 	strb	r0,[r3,r1]
         b       end_EXTI4_IRQHandler
 
- read_memory:
+read_memory:
 #ifdef DEBUG_EXTI4_RAM_TEST
         vstr     reg_bit0_high,[r12,ODR]
 #endif
@@ -385,13 +385,15 @@ write_memory:
         beq     rom
 ram:
         vmov    r3, reg_high_64k_base                   // read from RAM
-#ifdef DEBUG_EXTI4_RAM_READ
-        vstr     reg_led_on,[r12,ODR]
-#endif
+
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
         cmp     r1,#0x2000
         blo     end_EXTI4_IRQHandler                    
         b       read
+
+#ifdef DEBUG_EXTI4_RAM_READ
+        vstr     reg_led_on,[r12,ODR]
+#endif
 
 rom:                                                    // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
