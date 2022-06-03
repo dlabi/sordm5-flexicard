@@ -402,7 +402,7 @@ int __attribute__((optimize("O0")))  main(void) {
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); 
 
 	SysTick->CTRL  = 0;
-	//config_PB14_int();
+	config_PB14_int();
 	config_PC4_int();
 
         SD_NVIC_Configuration(); 
