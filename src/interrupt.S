@@ -346,7 +346,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
-        ldr     r0, #1 //[r0]            
+        mov     r0, #1 //[r0]            
         beq     read_memory
  
 write_check:
