@@ -1,4 +1,4 @@
-#define _VER_ 11.2
+#define _VER_ 11.3
 
 #include "main.h"
 
@@ -350,13 +350,13 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         beq     read_memory
  
 write_check:
-        tst     r1,#0x8000                              // check A15. If it is high. We are interested
+        tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
         bne     write_memory
         tst     r0, #1                                  //1 - RAM 0-ROM
-        bne     no_rom                                  // 2000-                                                              
+        bne     check_regions                                  // 2000-                                                              
         b       end_EXTI4_IRQHandler   
-no_rom:
-        cmp     r1,#0x2000
+check_regions:
+        cmp     r1,#0x2000                              // je treba overit hw odpojeni monitoru, jinak hrozi hazard
         blo     end_EXTI4_IRQHandler                    //0-1fff exit
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
@@ -385,6 +385,7 @@ read_memory:
         ldr     r0, [r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
         bne     ram
+        //neni potreba v rom: se oblast 0-1fff testuje take
         cmp     r1,#0x2000                              //0-1fff MONITOR ROM - exit
         blo     end_EXTI4_IRQHandler  
 
@@ -403,12 +404,11 @@ rom:                                                    // read from 0-7fff, tes
         b       read
 
 ram:
-        vmov    r3, reg_high_64k_base                   // read from RAM
-
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
         cmp     r1,#0x2000
-        blo     end_EXTI4_IRQHandler                    
-
+        blo     end_EXTI4_IRQHandler  
+        vmov    r3, reg_high_64k_base                   // read from RAM
+                 
 #ifdef DEBUG_EXTI4_RAM_READ
         vstr     reg_led_on,[r12,ODR]
 #endif
