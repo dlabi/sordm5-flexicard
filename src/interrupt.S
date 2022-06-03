@@ -1,4 +1,4 @@
-#define _VER_ 10.8
+#define _VER_ 10.9
 
 #include "main.h"
 
@@ -382,18 +382,7 @@ read_memory:
         ldr     r0, =mem_mode
         mov     r0, #1 //[r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
-        beq     rom
-ram:
-        vmov    r3, reg_high_64k_base                   // read from RAM
-
-        //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
-        cmp     r1,#0x2000
-        blo     end_EXTI4_IRQHandler                    
-        b       read
-
-#ifdef DEBUG_EXTI4_RAM_READ
-        vstr     reg_led_on,[r12,ODR]
-#endif
+        bne     ram
 
 rom:                                                    // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
@@ -407,6 +396,18 @@ rom:                                                    // read from 0-7fff, tes
         movle   r0,#0x2000                              // type 00
         cmp     r1,r0                                   // test if we are in rom range
         bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
+        b       read
+
+ram:
+        vmov    r3, reg_high_64k_base                   // read from RAM
+
+        //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
+        cmp     r1,#0x2000
+        blo     end_EXTI4_IRQHandler                    
+
+#ifdef DEBUG_EXTI4_RAM_READ
+        vstr     reg_led_on,[r12,ODR]
+#endif
 
 read:
 #ifdef DEBUG_EXTI4_MRD
