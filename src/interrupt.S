@@ -1,4 +1,4 @@
-#define _VER_ 11.0
+#define _VER_ 11.1
 
 #include "main.h"
 
@@ -379,6 +379,8 @@ read_memory:
 #endif
         tst     r1,#0x8000
         bne     ram
+        cmp     r1,#0x7000
+        bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
         mov     r0, #1 //[r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
