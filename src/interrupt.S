@@ -1,4 +1,4 @@
-#define _VER_ 11.1
+#define _VER_ 11.2
 
 #include "main.h"
 
@@ -346,7 +346,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
-        mov     r0, #1 //[r0]            
+        ldr     r0, [r0]            
         beq     read_memory
  
 write_check:
@@ -382,9 +382,11 @@ read_memory:
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
-        mov     r0, #1 //[r0] 
+        ldr     r0, [r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
         bne     ram
+        cmp     r1,#0x2000                              //0-1fff MONITOR ROM - exit
+        blo     end_EXTI4_IRQHandler  
 
 rom:                                                    // read from 0-7fff, test if we are interested
         vmov	r3,reg_rom_base                         
