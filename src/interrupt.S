@@ -1,4 +1,4 @@
-#define _VER_ 11.6
+#define _VER_ 11.7
 
 #include "main.h"
 
