@@ -1,4 +1,4 @@
-#define _VER_ 11.8
+#define _VER_ 11.9
 
 #include "main.h"
 
@@ -348,6 +348,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         ldr     r0, =mem_mode
         ldr     r0, [r0]            
         beq     read_memory
+        b     end_EXTI4_IRQHandler
  
 write_check:
         tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
