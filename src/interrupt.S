@@ -1,4 +1,4 @@
-#define _VER_ 11.4
+#define _VER_ 11.5
 
 #include "main.h"
 
@@ -382,7 +382,7 @@ read_memory:
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
-        mov     r0, #0 //[r0] 
+        ldr     r0, [r0] 
         tst     r0, #1                                  //1-RAM 0-ROM
         bne     ram
         //neni potreba v rom: se oblast 0-1fff testuje take
