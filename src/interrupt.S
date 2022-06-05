@@ -1,4 +1,4 @@
-#define _VER_ 12.0
+#define _VER_ 12.1
 
 #include "main.h"
 
@@ -410,7 +410,7 @@ rom:                                                    // cokoliv mimo rom rang
 
 ram:
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
-        cmp     r1,#0x2000
+        cmp     r1,#0x2001
         blo     end_EXTI4_IRQHandler  
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
