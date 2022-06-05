@@ -1,4 +1,4 @@
-#define _VER_ 11.9
+#define _VER_ 12.0
 
 #include "main.h"
 
@@ -346,9 +346,10 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
-        ldr     r0, [r0]            
-        beq     read_memory
-        b     end_EXTI4_IRQHandler
+        ldr     r0, [r0] 
+        bne     end_EXTI4_IRQHandler                    //write disabled now
+        b read_memory           
+        //beq     read_memory
  
 write_check:
         tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
@@ -386,14 +387,14 @@ read_memory:
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
-        mov     r0, #0 //[r0] 
+        ldr     r0, [r0]
+#ifdef DEBUG_EXTI4_OUT6C
+        str     r0,[r12,ODR]
+#endif 
         tst     r0, #1                                  //1-RAM 0-ROM
         bne     ram
-        //neni potreba v rom: se oblast 0-1fff testuje take
-        cmp     r1,#0x2000                              //0-1fff MONITOR ROM - exit
-        blo     end_EXTI4_IRQHandler  
 
-rom:                                                    // read from 0-7fff, test if we are interested
+rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
         vmov	r3,reg_rom_base                         
         ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
         sub     r1, #0x2000                             // offset address from 0
