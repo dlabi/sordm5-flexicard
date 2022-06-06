@@ -1,4 +1,4 @@
-#define _VER_ 12.5
+#define _VER_ 12.6
 
 #include "main.h"
 
@@ -355,7 +355,9 @@ write_check:
         tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
         bne     write_memory
 #ifdef DEBUG_EXTI4_OUT6C
-        str     r0,[r12,ODR]
+        ldr     r3,[r12,IMR]
+        bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
+        str     r3,[r12,ODR]
 #endif
         tst     r0, #1                                  //1 - RAM 0-ROM
         bne     check_regions                                  // 2000-                                                              
@@ -505,7 +507,9 @@ clear_pending_iorq_int14:                               // musi byt jinak nezach
 	cmp     r1, #0x6c
         bne.n	end_EXTI15_10_IRQHandler
 #ifdef DEBUG_EXTI14_6C
-        vstr    reg_bit1_high,[r12,ODR]
+        ldr     r0,[r12,IMR]
+        orr     r0, #2
+        str     r0,[r12,ODR]
 #endif
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
         lsrs	r0,r0,#8                                // PD8-PD15 -> shift it to 0
