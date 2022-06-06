@@ -1,4 +1,4 @@
-#define _VER_ 12.3
+#define _VER_ 12.4
 
 #include "main.h"
 
@@ -511,6 +511,8 @@ clear_pending_iorq_int14:                               // musi byt jinak nezach
         lsrs	r0,r0,#8                                // PD8-PD15 -> shift it to 0
         ldr     r1, =mem_mode
         strb    r0,[r1]
+        dsb                                             //nevim zdali jsou potreba, ale rychle prepnuti mem_mode nezachytim
+        isb
 
 #ifdef DEBUG_EXTI14_DATA_OUT
         tst     r0,#1
