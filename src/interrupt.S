@@ -1,4 +1,4 @@
-#define _VER_ 12.8
+#define _VER_ 12.9
 
 #include "main.h"
 
@@ -541,7 +541,7 @@ end_EXTI15_10_IRQHandler:
 #ifdef DEBUG_EXTI14_END
         delay 4
         ldr     r0,[r12,IMR]
-        bic     r0,#3                        //clearne 1. bit pocitano od 0
+        bic     r0,#2                        //clearne 1. bit pocitano od 0
         str     r0,[r12,ODR]
 #endif
         dsb
