@@ -1,4 +1,4 @@
-#define _VER_ 12.7
+#define _VER_ 12.8
 
 #include "main.h"
 
@@ -490,7 +490,9 @@ unrolled_exit_EXTI4
 EXTI15_10_IRQHandler:
         vmov	   r12,reg_gpioa_base
 #ifdef DEBUG_EXTI14_START
-        vstr       reg_bit0_high,[r12,ODR]
+        ldr     r0,[r12,IMR]
+        orr     r0, #1
+        str     r0,[r12,ODR]
 #endif                      
 
 clear_pending_iorq_int14:                               // musi byt jinak nezachytime vsechny edge
@@ -539,7 +541,7 @@ end_EXTI15_10_IRQHandler:
 #ifdef DEBUG_EXTI14_END
         delay 4
         ldr     r0,[r12,IMR]
-        bic     r0,#0b10                        //clearne 1. bit pocitano od 0
+        bic     r0,#3                        //clearne 1. bit pocitano od 0
         str     r0,[r12,ODR]
 #endif
         dsb
