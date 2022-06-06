@@ -1,4 +1,4 @@
-#define _VER_ 12.6
+#define _VER_ 12.7
 
 #include "main.h"
 
@@ -391,7 +391,9 @@ read_memory:
         ldr     r0, =mem_mode
         ldr     r0, [r0]
 #ifdef DEBUG_EXTI4_OUT6C
-        str     r0,[r12,ODR]
+        ldr     r3,[r12,IMR]
+        bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
+        str     r3,[r12,ODR]
 #endif 
         tst     r0, #1                                  //1-RAM 0-ROM
         bne     ram
