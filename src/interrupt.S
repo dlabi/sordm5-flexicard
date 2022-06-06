@@ -1,4 +1,4 @@
-#define _VER_ 12.2
+#define _VER_ 12.3
 
 #include "main.h"
 
@@ -347,9 +347,9 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
         ldr     r0, [r0] 
-        bne     end_EXTI4_IRQHandler                    //write disabled now
-        b read_memory           
-        //beq     read_memory
+        //bne     end_EXTI4_IRQHandler                    //write disabled now
+        //b read_memory           
+        beq     read_memory
  
 write_check:
         tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
@@ -410,8 +410,7 @@ rom:                                                    // cokoliv mimo rom rang
 
 ram:
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
-        mov     r3,#0x4001
-        cmp     r1,r3
+        cmp     r1,#0x2000
         blo     end_EXTI4_IRQHandler  
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
