@@ -1,4 +1,4 @@
-#define _VER_ 13.1
+#define _VER_ 13.2
 
 #include "main.h"
 
@@ -215,7 +215,7 @@ main_thread_command:
 main_thread_data:
 	.word	0x00000000			// command arg
 mem_mode:
-        .word   0x00                            // memory mode
+        .byte   0x00                            // memory mode
 
 .section ccmram
 low_64k_base:
@@ -346,7 +346,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
-        ldr     r0, [r0] 
+        ldrb    r0, [r0] 
         //bne     end_EXTI4_IRQHandler                    //write disabled now
         //b read_memory           
         beq     read_memory
@@ -389,7 +389,7 @@ read_memory:
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
-        ldr     r0, [r0]
+        ldrb    r0, [r0]
 #ifdef DEBUG_EXTI4_OUT6C
         ldr     r3,[r12,IMR]
         bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
