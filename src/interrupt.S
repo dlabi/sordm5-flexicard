@@ -1,4 +1,4 @@
-#define _VER_ 13.0
+#define _VER_ 13.1
 
 #include "main.h"
 
@@ -215,7 +215,7 @@ main_thread_command:
 main_thread_data:
 	.word	0x00000000			// command arg
 mem_mode:
-        .byte   0x00                            // memory mode
+        .word   0x00                            // memory mode
 
 .section ccmram
 low_64k_base:
