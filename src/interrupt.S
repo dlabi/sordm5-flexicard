@@ -1,4 +1,4 @@
-#define _VER_ 13.2
+#define _VER_ 13.3
 
 #include "main.h"
 
@@ -330,7 +330,7 @@ init_fpu_regs:
 EXTI4_IRQHandler:
         vmov	r12,reg_gpioa_base
 #ifdef DEBUG_EXTI4_START
-        vstr     reg_bit0_high,[r12,ODR]
+        vstr    reg_bit0_high,[r12,ODR]
 #endif
        
 clear_pending_iorq_int:                                 // musi byt jinak nezachytime vsechny edge
@@ -355,7 +355,7 @@ write_check:
         tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
         bne     write_memory
 #ifdef DEBUG_EXTI4_OUT6C
-        ldr     r3,[r12,IMR]
+        ldr     r3,[r12,ODR]
         bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
         str     r3,[r12,ODR]
 #endif
@@ -391,7 +391,7 @@ read_memory:
         ldr     r0, =mem_mode
         ldrb    r0, [r0]
 #ifdef DEBUG_EXTI4_OUT6C
-        ldr     r3,[r12,IMR]
+        ldr     r3,[r12,ODR]
         bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
         str     r3,[r12,ODR]
 #endif 
@@ -490,7 +490,7 @@ unrolled_exit_EXTI4
 EXTI15_10_IRQHandler:
         vmov	   r12,reg_gpioa_base
 #ifdef DEBUG_EXTI14_START
-        ldr     r0,[r12,IMR]
+        ldr     r0,[r12,ODR]
         orr     r0, #1
         str     r0,[r12,ODR]
 #endif                      
@@ -511,7 +511,7 @@ clear_pending_iorq_int14:                               // musi byt jinak nezach
 	cmp     r1, #0x6c
         bne.n	end_EXTI15_10_IRQHandler
 #ifdef DEBUG_EXTI14_6C
-        ldr     r0,[r12,IMR]
+        ldr     r0,[r12,ODR]
         orr     r0, #2
         str     r0,[r12,ODR]
 #endif
@@ -540,7 +540,7 @@ end_EXTI15_10_IRQHandler:
 
 #ifdef DEBUG_EXTI14_END
         delay 4
-        ldr     r0,[r12,IMR]
+        ldr     r0,[r12,ODR]
         bic     r0,#2                        //clearne 1. bit pocitano od 0
         str     r0,[r12,ODR]
 #endif
