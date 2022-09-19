@@ -39,7 +39,7 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
 CFLAGS += --specs=nosys.specs
 #used for semihosting debug
-#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1
@@ -59,7 +59,7 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DFDC_STATUS_LOGGING
 #CFLAGS += -DFDC_READDATA_LOGGING
 #CFLAGS += -DFDC_LOGGING
-#CFLAGS += -DENABLE_SEMIHOSTING
+CFLAGS += -DENABLE_SEMIHOSTING
 #CFLAGS += -DENABLE_SEMIHOSTING_SEEK
 #CFLAGS += -DENABLE_SEMIHOSTING_CHANGE_DISK
 #CFLAGS += -DENABLE_SEMIHOSTING_SECTOR_TABLE
