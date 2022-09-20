@@ -125,4 +125,4 @@ clean:
 
 # Flash the STM32F4
 #burn: proj
-#	$(STLINK)/st-flash write $(PROJ_NAME).bin 0x8000000
+#st-flash write $(PROJ_NAME).bin 0x8000000
