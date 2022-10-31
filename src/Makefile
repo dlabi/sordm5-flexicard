@@ -38,8 +38,8 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
 CFLAGS += --specs=nosys.specs
-#used for semihosting debug
-CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+#used for semihosting debug, not needed for SWO/SWV, otherwise causing breakpoint on printfs!!!
+#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1
@@ -59,29 +59,19 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DFDC_STATUS_LOGGING
 #CFLAGS += -DFDC_READDATA_LOGGING
 #CFLAGS += -DFDC_LOGGING
-CFLAGS += -DENABLE_SEMIHOSTING
-#CFLAGS += -DENABLE_SEMIHOSTING_SEEK
-#CFLAGS += -DENABLE_SEMIHOSTING_CHANGE_DISK
-#CFLAGS += -DENABLE_SEMIHOSTING_SECTOR_TABLE
-#CFLAGS += -DENABLE_SEMIHOSTING_DISK_INFO
-#CFLAGS += -DENABLE_SEMIHOSTING_SAVE_TRACK
+#CFLAGS += -DENABLE_SWO #debug swo
 #CFLAGS += -DDBGIO
 #CFLAGS += -DDEBUG_MAIN
 #CFLAGS += -DDEBUG_ROMEN
 #CFLAGS += -DDEBUG_IORQ
-#CFLAGS += -DDEBUG_EXTI14_START
-#CFLAGS += -DDEBUG_EXTI14_END
-#CFLAGS += -DDEBUG_EXTI14_6C
-#CFLAGS += -DDEBUG_EXTI14_DATA_OUT
-#CFLAGS += -DDEBUG_EXTI4_START
+#CFLAGS += -DDEBUG_EXTI1
+CFLAGS += -DDEBUG_EXTI4_START
 #CFLAGS += -DDEBUG_EXTI4
-#CFLAGS += -DDEBUG_EXTI4_MRD
+CFLAGS += -DDEBUG_EXTI4_MRD
+CFLAGS += -DDEBUG_EXTI4_ROMREAD
 #CFLAGS += -DDEBUG_EXTI4_DATA_OUT
 #CFLAGS += -DDEBUG_EXTI4_TRISTATED
 #CFLAGS += -DDEBUG_EXTI4_END
-#CFLAGS += -DDEBUG_EXTI4_OUT6C
-#CFLAGS += -DDEBUG_EXTI4_RAM_READ
-#CFLAGS += -DDEBUG_EXTI4_RAM_TEST
 #CFLAGS += -DDEBUG_EXTI4_RAM_WRITE
 #CFLAGS += -DDEBUG_SPURIOUS_EVENT_MREQ
 #CFLAGS += -DDISABLE_ALL_BUT_SHOW_MAIN_THREAD_ACTIVITY
@@ -122,7 +112,8 @@ clean:
 	rm -f $(PROJ_NAME).hex
 	rm -f $(PROJ_NAME).bin
 
-
+#attaches stlink from host win to wsl
+usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
 # Flash the STM32F4
 #burn: proj
-#st-flash write $(PROJ_NAME).bin 0x8000000
+#	$(STLINK)/st-flash write $(PROJ_NAME).bin 0x8000000
