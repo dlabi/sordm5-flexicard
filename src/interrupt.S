@@ -1,4 +1,4 @@
-#define _VER_ 13.3
+#define _VER_ 13.4
 
 #include "main.h"
 
@@ -17,7 +17,8 @@
 	.global main_thread_command
 	.global main_thread_data
         .global mem_mode
-
+        .global debug_var1
+        .global debug_var2
 
 
 /* REGISTERS */
@@ -217,6 +218,11 @@ main_thread_data:
 mem_mode:
         .byte   0x00                            // memory mode
 
+debug_var1:
+	.word	0x00000000
+debug_var2:
+	.word	0x00000000        
+
 .section ccmram
 low_64k_base:
 	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
@@ -231,7 +237,7 @@ low_64k_base:
 
 //PA0-PA2 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
-//PB3 - RFSH
+//PB3 - RFSH            nutno zrusit kvuli swo debug
 //PB5 - WAIT
 //PB6 - EXINT
 //PB7 - EXCLK

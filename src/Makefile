@@ -112,8 +112,9 @@ clean:
 	rm -f $(PROJ_NAME).hex
 	rm -f $(PROJ_NAME).bin
 
+stlink:
 #attaches stlink from host win to wsl
-usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
+	usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
 # Flash the STM32F4
-#burn: proj
-#	$(STLINK)/st-flash write $(PROJ_NAME).bin 0x8000000
+burn:
+	st-flash write $(PROJ_NAME).bin 0x8000000

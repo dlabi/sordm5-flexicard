@@ -18,10 +18,21 @@ extern volatile uint32_t main_thread_command;
 extern volatile uint32_t main_thread_data;
 extern volatile uint8_t mem_mode;
 
+#ifdef ENABLE_SWO
+//extern void initialise_monitor_handles(void);   /*rtt*/
+extern volatile uint32_t debug_var1;
+extern volatile uint32_t debug_var2;
 
+int _write(int32_t file, uint8_t *ptr, int32_t len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        ITM_SendChar(*ptr++);
+    }
+    return len;
+}
 
-#ifdef ENABLE_SEMIHOSTING
-extern void initialise_monitor_handles(void);   /*rtt*/
+printf("SWO debug on\n");
 #endif
 
 
@@ -67,10 +78,11 @@ void delay_ms(const uint16_t ms)
 }
 
 void blink_pa6_pa7(int n) {
+        int i=0;
         while(n) {
-                GPIOA->ODR = 0x0040;
+                GPIOA->ODR = 0x0040+(i++ % 3)+1;
                 delay_ms(500);
-                GPIOA->ODR = 0x0080; 
+                GPIOA->ODR = 0x0080+(i++ % 3)+1; 
                 delay_ms(500);
                 n -= 1;
         }
