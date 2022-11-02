@@ -1,4 +1,4 @@
-#define _VER_ 13.4
+#define _VER_ 13.5
 
 #include "main.h"
 
@@ -365,9 +365,9 @@ write_check:
         bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
         str     r3,[r12,ODR]
 #endif
-        tst     r0, #1                                  //1 - RAM 0-ROM
-        bne     check_regions                                  // 2000-                                                              
-        b       end_EXTI4_IRQHandler   
+        tst     r0, #0                                  //1 - RAM 0-ROM
+                                                        // 2000-                                                              
+        beq     end_EXTI4_IRQHandler   
 check_regions:
         cmp     r1,#0x2000                              // je treba overit hw odpojeni monitoru, jinak hrozi hazard
         blo     end_EXTI4_IRQHandler                    //0-1fff exit

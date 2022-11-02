@@ -32,7 +32,7 @@ int _write(int32_t file, uint8_t *ptr, int32_t len)
     return len;
 }
 
-printf("SWO debug on\n");
+//printf("SWO debug on\n");
 #endif
 
 
@@ -430,20 +430,12 @@ int __attribute__((optimize("O0")))  main(void) {
         blink_pa6_pa7(2);
 
         mem_mode = 0;
-
-#ifdef DISABLE_ALL_BUT_SHOW_MAIN_THREAD_ACTIVITY
-	while(1) {
-		GPIOA->ODR = 1;
-		asm volatile ("nop");
-		GPIOA->ODR = 0;
-		asm volatile ("nop");
-	}
-#endif
-		
+	printf("Mem mode is :%d", mem_mode);	
 	while(1) {
                
                 if ((mem_mode & 1) == 1){
                 
+                printf("Mem mode is :%d", mem_mode);
                 GPIOA->ODR = GPIOA->ODR | 0x01;         //rozsvit led
                 }
                 else {

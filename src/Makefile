@@ -1,8 +1,3 @@
-
-
-# Put your stlink folder here so make burn will work.
-STLINK=~/stlink.git
-
 #SRCS=main.c system_stm32f4xx.c stm32f4xx_it.c
 #SRCS=main.c system_stm32f4xx.c working-stm32f4xx_it.c
 
@@ -59,16 +54,16 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DFDC_STATUS_LOGGING
 #CFLAGS += -DFDC_READDATA_LOGGING
 #CFLAGS += -DFDC_LOGGING
-#CFLAGS += -DENABLE_SWO #debug swo
+CFLAGS += -DENABLE_SWO #debug swo
 #CFLAGS += -DDBGIO
 #CFLAGS += -DDEBUG_MAIN
 #CFLAGS += -DDEBUG_ROMEN
 #CFLAGS += -DDEBUG_IORQ
 #CFLAGS += -DDEBUG_EXTI1
-CFLAGS += -DDEBUG_EXTI4_START
+#CFLAGS += -DDEBUG_EXTI4_START
 #CFLAGS += -DDEBUG_EXTI4
-CFLAGS += -DDEBUG_EXTI4_MRD
-CFLAGS += -DDEBUG_EXTI4_ROMREAD
+#CFLAGS += -DDEBUG_EXTI4_MRD
+#CFLAGS += -DDEBUG_EXTI4_ROMREAD
 #CFLAGS += -DDEBUG_EXTI4_DATA_OUT
 #CFLAGS += -DDEBUG_EXTI4_TRISTATED
 #CFLAGS += -DDEBUG_EXTI4_END
