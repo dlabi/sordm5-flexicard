@@ -382,7 +382,7 @@ int __attribute__((optimize("O0")))  main(void) {
 	config_PB14_int();
 	config_PC4_int();
 
-        SD_NVIC_Configuration(); 
+        //SD_NVIC_Configuration(); 
 
 #ifdef ENABLE_SWO
         //initialise_monitor_handles();   /*rtt*/
@@ -394,13 +394,17 @@ int __attribute__((optimize("O0")))  main(void) {
         blink_pa6_pa7(2);
 
         mem_mode = 0;
-	printf("Mem mode is :%d\n", mem_mode);	
+        #ifdef ENABLE_SWO
+	printf("Mem mode is :%d\n", mem_mode);
+        #endif	
 	while(1) {
                
+               #ifdef ENABLE_SWO
                 if ((mem_mode & 1) == 1){
                 
                 printf("Mem mode is :%d\n", mem_mode);
                 }
+                #endif
                 /*
                 GPIOA->ODR = GPIOA->ODR | 0x01;         //rozsvit led
                 }
