@@ -7,8 +7,6 @@
 
 GPIO_InitTypeDef  GPIO_InitStructure;
 
-extern uint32_t *romdis;
-
 extern volatile uint8_t *rom_base;
 extern void init_fpu_regs(void);
 
@@ -32,18 +30,8 @@ int _write(int32_t file, uint8_t *ptr, int32_t len)
     return len;
 }
 
-//printf("SWO debug on\n");
 #endif
 
-
-char* path;
-
-
-#if _USE_LFN
-    static char lfn[_MAX_LFN + 1];
-        fno.lfname = lfn;
-            fno.lfsize = sizeof lfn;
-#endif
 
 // Enable the FPU (Cortex-M4 - STM32F4xx and higher)
 // http://infocenter.arm.com/help/topic/com.arm.doc.dui0553a/BEHBJHIG.html
@@ -222,7 +210,6 @@ void config_PB14_int(void) {
 }
 
 
-
 void config_PC4_int(void) {
         EXTI_InitTypeDef EXTI_InitStruct;
         NVIC_InitTypeDef NVIC_InitStruct;
@@ -289,17 +276,6 @@ void config_gpio_portc(void) {
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-/*
-	//GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3|  GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIOC->ODR = 0x0000;
-*/
-
 }
 
 /* Input/Output data GPIO pins on PD{8..15}. Also PD2 is used fo MOSI on the STM32F407VET6 board I have */
@@ -318,12 +294,6 @@ void config_gpio_data(void) {
 	//GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
-	//GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2 ;
-	//GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	//GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	//GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	//GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	//GPIO_Init(GPIOD, &GPIO_InitStructure);
 }
 
 /* Input Address GPIO pins on PE{0..15} */
@@ -378,11 +348,6 @@ void config_backup_sram(void) {
 int __attribute__((optimize("O0")))  main(void) {
 
 
-#ifdef ENABLE_SEMIHOSTING
-        initialise_monitor_handles();   /*rtt*/
-	printf("Semi hosting on\n");
-#endif
-
         // You have to disable lazy stacking BEFORE initialising the scratch fpu registers
 	enable_fpu_and_disable_lazy_stacking();
 	init_fpu_regs();
@@ -419,29 +384,30 @@ int __attribute__((optimize("O0")))  main(void) {
 
         SD_NVIC_Configuration(); 
 
-/*
-	uint32_t *p;
-	p = (uint32_t *) &romdis;
-	*p = 0x0000;
-*/	
+#ifdef ENABLE_SWO
+        //initialise_monitor_handles();   /*rtt*/
+	printf("Semi hosting on\n");
+#endif
+	
 	//__enable_irq();
-
 
         blink_pa6_pa7(2);
 
         mem_mode = 0;
-	printf("Mem mode is :%d", mem_mode);	
+	printf("Mem mode is :%d\n", mem_mode);	
 	while(1) {
                
                 if ((mem_mode & 1) == 1){
                 
-                printf("Mem mode is :%d", mem_mode);
+                printf("Mem mode is :%d\n", mem_mode);
+                }
+                /*
                 GPIOA->ODR = GPIOA->ODR | 0x01;         //rozsvit led
                 }
                 else {
 
                   GPIOA->ODR = GPIOA->ODR & 0xfe;      //zhasni led
-                 
+                 */
                 }
                  
          /*               
@@ -453,7 +419,7 @@ int __attribute__((optimize("O0")))  main(void) {
          */
         }	
         			   
-}
+
 		
 
 
