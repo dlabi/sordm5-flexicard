@@ -15,6 +15,7 @@ extern void init_fpu_regs(void);
 extern volatile uint32_t main_thread_command;
 extern volatile uint32_t main_thread_data;
 extern volatile uint8_t mem_mode;
+volatile uint8_t pre_mem_mode;
 
 #ifdef ENABLE_SWO
 //extern void initialise_monitor_handles(void);   /*rtt*/
@@ -197,7 +198,7 @@ void config_PB14_int(void) {
         EXTI_Init(&EXTI_InitStruct);
 
         /* Add IRQ vector to NVIC */
-        /* PC0 is connected to EXTI_Line0, which has EXTI1_IRQn vector */
+        /* PB14 is connected to EXTI_Line14, which has EXTI15_10_IRQn vector */
         NVIC_InitStruct.NVIC_IRQChannel = EXTI15_10_IRQn;
         /* Set priority */
         NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x00;
@@ -395,14 +396,14 @@ int __attribute__((optimize("O0")))  main(void) {
 
         mem_mode = 0;
         #ifdef ENABLE_SWO
-	printf("Mem mode is :%d\n", mem_mode);
+	//printf("%d\n", mem_mode);
         #endif	
 	while(1) {
                
                #ifdef ENABLE_SWO
                 if ((mem_mode & 1) == 1){
                 
-                printf("Mem mode is :%d\n", mem_mode);
+                //printf("Mem mode is :%d\n", mem_mode);
                 }
                 #endif
                 /*

@@ -1,4 +1,4 @@
-#define _VER_ 13.6
+#define _VER_ 13.7
 
 #include "main.h"
 
@@ -264,19 +264,19 @@ low_64k_base:
 .align 4
 .thumb_func
 init_fpu_regs:
-	movs	r0,#0
+	mov	r0,#0
 	vmov	reg_zero,r0
 
-	movs	r0,#1
+	mov	r0,#1
 	vmov	reg_bit0_high,r0
 
-	movs	r0,#2
+	mov	r0,#2
 	vmov	reg_bit1_high,r0
 
 	mov32	r0,GPIOC_BASE
 	vmov	reg_gpioc_base,r0
 
-	movs	r0,#0b100000000000000
+	mov	r0,#0b100000000000000
 	vmov	reg_bit14_high,r0
 
 	mov32	r0,GPIOA_BASE
@@ -297,22 +297,22 @@ init_fpu_regs:
 	mov32	r0,GPIOB_BASE
 	vmov	reg_gpiob_base,r0
 
-        movs	r0,#0x10
+        mov	r0,#0x10
 	vmov	reg_bit4_high,r0
 
-	movs	r0,#0x40
+	mov	r0,#0x40
 	vmov	reg_bit6_high,r0
 
-	movs	r0,#0x100
+	mov	r0,#0x100
 	vmov	reg_bit8_high,r0
 
         mov32	r0,rom_base
 	vmov	reg_rom_base,r0
 
-        movs	r0,#0x44
+        mov	r0,#0x44
 	vmov	reg_led_on,r0
 
-        movs	r0,#0xc0
+        mov	r0,#0xc0
         vmov    reg_led_off,r0
 
 	//mov32	r0,0x10000000
@@ -391,7 +391,7 @@ read_memory:
         vstr     reg_bit0_high,[r12,ODR]
 #endif
         tst     r1,#0x8000
-        bne     ram
+        bne     ram1
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
         ldr     r0, =mem_mode
@@ -421,7 +421,9 @@ rom:                                                    // cokoliv mimo rom rang
 ram:
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
         cmp     r1,#0x2000
-        blo     end_EXTI4_IRQHandler  
+        blo     end_EXTI4_IRQHandler
+        nop                                             //ram 2000-6fff 
+ram1:
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
 #ifdef DEBUG_EXTI4_RAM_READ
@@ -472,7 +474,7 @@ read:
         str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
 
 #ifdef DEBUG_EXTI4_TRISTATED
-        movs    r0,#0xc5
+        mov     r0,#0xc5
         str     r0,[r12, ODR]
 #endif
         clear_EXTI4_RTSR                                //zakaz INT na nabeznou hranu, pouziva r3
@@ -484,7 +486,7 @@ end_EXTI4_IRQHandler:
         ldr     r0,[r3,IMR]                             // EXTI_IMR
         orr     r0,#0x0010                              // reenable PC4 interrupts
 
-        movs    r1,#EXTI_Line4
+        mov     r1,#EXTI_Line4
         str     r1,[r3,PR]                              // EXTI_PR 
         str     r0,[r3,IMR]                             // EXTI_IMR	// I think you need to reenable after the clear
 
@@ -496,37 +498,45 @@ unrolled_exit_EXTI4
 EXTI15_10_IRQHandler:
         vmov	   r12,reg_gpioa_base
 #ifdef DEBUG_EXTI14_START
-        ldr     r0,[r12,ODR]
-        orr     r0, #1
+        //ldr     r0,[r12,ODR]
+        mov     r0, #4                                  // bit 3, indikuje aktivni int14
+        //orr     r0, #1
         str     r0,[r12,ODR]
 #endif                      
 
 clear_pending_iorq_int14:                               // musi byt jinak nezachytime vsechny edge
 	vmov	r3,reg_exti_base		        // s7 = EXTI
+        ldr     r0,[r3,PR]
+        tst     r0,#EXTI_Line14
+        beq     end_EXTI15_10_IRQHandler1
+         
 	vstr	reg_bit14_high,[r3,PR]	                // clear interrupt
 
+
         vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mreq
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get IOWR
         tst     r0,#_IOWR_MASK
-        bne     end_EXTI15_10_IRQHandler                //exit spurious IRQ
+        bne     end_EXTI15_10_IRQHandler1                //exit spurious IRQ
 
 //	tst	r0,_EXIOA_MASK
-//	bne.n	end_EXTI15_10_IRQHandler
-
+//	bne	end_EXTI15_10_IRQHandler1
+        
 	ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
 	cmp     r1, #0x6c
-        bne.n	end_EXTI15_10_IRQHandler
-#ifdef DEBUG_EXTI14_6C
-        ldr     r0,[r12,ODR]
-        orr     r0, #2
-        str     r0,[r12,ODR]
-#endif
+        bne	end_EXTI15_10_IRQHandler
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
-        lsrs	r0,r0,#8                                // PD8-PD15 -> shift it to 0
+        lsr	r0,r0,#8                                // PD8-PD15 -> shift it to 0
+#ifdef DEBUG_EXTI14_6C
+        ldr     r1,[r12,ODR]
+        orr     r0, r1                                  //bit 0 ukazuje co bylo na D0(predpokladam ze pouzivame out&6c,0 a 1)
+        orr     r1, r0, #2                              // bit 1 je indikator ze probiha out6c
+        str     r1,[r12,ODR]
+#endif
         ldr     r1, =mem_mode
-        strb    r0,[r1]
+        //strb    r0,[r1]
         dsb                                             //nevim zdali jsou potreba, ale rychle prepnuti mem_mode nezachytim
-        isb
+        //isb
+        b  end_EXTI15_10_IRQHandler
 
 #ifdef DEBUG_EXTI14_DATA_OUT
         tst     r0,#1
@@ -534,7 +544,8 @@ clear_pending_iorq_int14:                               // musi byt jinak nezach
         vstreq  reg_led_off,[r12,ODR] //0 ROM
         vstrne  reg_led_on,[r12,ODR]  //1 RAM
 #endif
-
+end_EXTI15_10_IRQHandler1:
+        nop
 end_EXTI15_10_IRQHandler:
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
@@ -545,9 +556,9 @@ end_EXTI15_10_IRQHandler:
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
 #ifdef DEBUG_EXTI14_END
-        delay 4
+        //delay 4
         ldr     r0,[r12,ODR]
-        bic     r0,#2                        //clearne 1. bit pocitano od 0
+        bic     r0,#6                        //clearne 1. a 2. bit pocitano od 0
         str     r0,[r12,ODR]
 #endif
         dsb
