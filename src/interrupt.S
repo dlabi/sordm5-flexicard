@@ -1,4 +1,4 @@
-#define _VER_ 13.7
+#define _VER_ 13.8
 
 #include "main.h"
 
@@ -8,7 +8,7 @@
         .fpu fpv4-sp-d16
 	.thumb
 
-	.global EXTI15_10_IRQHandler
+	.global EXTI0_IRQHandler
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
 	.global rom_base
@@ -26,7 +26,7 @@
 #define reg_bit0_high	s1
 #define reg_bit1_high	s2
 #define reg_gpioc_base	s3
-#define reg_bit14_high	s4
+#define reg_bit14_high	s4    //volny pro jine pouziti
 
 #define reg_gpioa_base	s5
 #define reg_high_64k_base	s6
@@ -178,10 +178,11 @@ rom_base:
         .equ IDR             ,   0x10
         .equ ODR             ,   0x14
 
+        .equ    EXTI_Line0      ,       0x00001
         .equ    EXTI_Line1      ,       0x00002
         .equ    EXTI_Line2      ,       0x00004
         .equ    EXTI_Line4      ,       0x00010
-        .equ    EXTI_Line14      ,      0x4000
+        .equ    EXTI_Line14     ,       0x04000
         .equ    EXTI            ,       0x40013c00
         .equ    EXTI_IMR        ,       EXTI + 0x00
         .equ    EXTI_PR         ,       EXTI + 0x14
@@ -192,8 +193,8 @@ rom_base:
         .equ	FTSR		,	0x0c
 	.equ	PR		,	0x14
 
-    .equ        SYSCFG_BASE,    0x40013800
-    .equ        SYSCFG_EXTICR1, SYSCFG_BASE + 0x08
+        .equ    SYSCFG_BASE     ,       0x40013800
+        .equ    SYSCFG_EXTICR1  ,       SYSCFG_BASE + 0x08
 
 
 #define	DATA_OUT_MODE	0x55550020
@@ -204,7 +205,7 @@ rom_base:
 #define _MRD_MASK	0x0800
 #define _MWR_MASK	0x1000
 #define _IORD_MASK	0x2000
-#define _IOWR_MASK	0x4000
+#define _IOWR_MASK	0x0001  //0x4000
 
 
 
@@ -237,6 +238,7 @@ low_64k_base:
 
 //PA0-PA2 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
+//PB0 = IOWR
 //PB3 - RFSH            nutno zrusit kvuli swo debug
 //PB5 - WAIT
 //PB6 - EXINT
@@ -247,7 +249,7 @@ low_64k_base:
 //PB11 - MRD            -RD & -MREQ
 //PB12 - MWR            -WR & MREQ
 //PB13 - IORD           -RD & -IORQ
-//PB14 - IOWR           -WR & -IORQ
+//PB14 - IOWR           -WR & -IORQ  replaced by PB0
 //PB15 - ROMDS
 
 //PC0 - ROM0		&0000 - &1FFF
@@ -352,9 +354,7 @@ clear_pending_iorq_int:                                 // musi byt jinak nezach
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
         ldr     r0, =mem_mode
-        ldrb    r0, [r0] 
-        //bne     end_EXTI4_IRQHandler                    //write disabled now
-        //b read_memory           
+        ldrb    r0, [r0]   
         beq     read_memory
  
 write_check:
@@ -365,9 +365,9 @@ write_check:
         bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
         str     r3,[r12,ODR]
 #endif
-        tst     r0, #0                                  //1 - RAM 0-ROM
-                                                        // 2000-                                                              
-        beq     end_EXTI4_IRQHandler   
+        tst     r0, #1                                  //1 - RAM 0-ROM
+        beq     end_EXTI4_IRQHandler                    //if ROM exit                                                           
+           
 check_regions:
         cmp     r1,#0x2000                              // je treba overit hw odpojeni monitoru, jinak hrozi hazard
         blo     end_EXTI4_IRQHandler                    //0-1fff exit
@@ -494,71 +494,66 @@ unrolled_exit_EXTI4
 
 
 // _IORW interrupt -ve edge
-.type EXTI15_10_IRQHandler, %function
-EXTI15_10_IRQHandler:
+.type EXTI0_IRQHandler, %function
+EXTI0_IRQHandler:
         vmov	   r12,reg_gpioa_base
-#ifdef DEBUG_EXTI14_START
+#ifdef DEBUG_EXTI0_START
         //ldr     r0,[r12,ODR]
-        mov     r0, #4                                  // bit 3, indikuje aktivni int14
+        mov     r0, #4                                  // bit 3, indikuje aktivni int0
         //orr     r0, #1
         str     r0,[r12,ODR]
 #endif                      
 
-clear_pending_iorq_int14:                               // musi byt jinak nezachytime vsechny edge
+clear_pending_iorq_int0:                               // musi byt jinak nezachytime vsechny edge
 	vmov	r3,reg_exti_base		        // s7 = EXTI
-        ldr     r0,[r3,PR]
-        tst     r0,#EXTI_Line14
-        beq     end_EXTI15_10_IRQHandler1
-         
-	vstr	reg_bit14_high,[r3,PR]	                // clear interrupt
-
+/*        ldr     r0,[r3,PR]
+        tst     r0,#EXTI_Line0
+        beq     end_EXTI0_IRQHandler1
+ */        
+	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get IOWR
         tst     r0,#_IOWR_MASK
-        bne     end_EXTI15_10_IRQHandler1                //exit spurious IRQ
-
-//	tst	r0,_EXIOA_MASK
-//	bne	end_EXTI15_10_IRQHandler1
-        
+        bne     end_EXTI0_IRQHandler                //exit spurious IRQ
+     
 	ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
-	cmp     r1, #0x6c
-        bne	end_EXTI15_10_IRQHandler
+	and     r1, #0xff                               // get the rid of upper address byte, it's important otherwise next check fails!  
+        cmp     r1, #0x6c
+        bne	end_EXTI0_IRQHandler
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
         lsr	r0,r0,#8                                // PD8-PD15 -> shift it to 0
-#ifdef DEBUG_EXTI14_6C
+#ifdef DEBUG_EXTI0_6C
         ldr     r1,[r12,ODR]
-        orr     r0, r1                                  //bit 0 ukazuje co bylo na D0(predpokladam ze pouzivame out&6c,0 a 1)
-        orr     r1, r0, #2                              // bit 1 je indikator ze probiha out6c
+        orr     r1, r0                                  //bit 0 ukazuje co bylo na D0(predpokladam ze pouzivame out&6c,0 a 1)
+        orr     r1, #2                                  // bit 1 je indikator ze probiha out6c
         str     r1,[r12,ODR]
 #endif
         ldr     r1, =mem_mode
-        //strb    r0,[r1]
-        dsb                                             //nevim zdali jsou potreba, ale rychle prepnuti mem_mode nezachytim
-        //isb
-        b  end_EXTI15_10_IRQHandler
+        strb    r0,[r1]
+        dsb                                             
+        b  end_EXTI0_IRQHandler
 
-#ifdef DEBUG_EXTI14_DATA_OUT
+#ifdef DEBUG_EXTI0_DATA_OUT
         tst     r0,#1
         ite     eq
         vstreq  reg_led_off,[r12,ODR] //0 ROM
         vstrne  reg_led_on,[r12,ODR]  //1 RAM
 #endif
-end_EXTI15_10_IRQHandler1:
-        nop
-end_EXTI15_10_IRQHandler:
+
+end_EXTI0_IRQHandler:
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]          // EXTI_IMR
-        orr     r0,#EXTI_Line14      // reenable PB14 interrupts
+        orr     r0,#EXTI_Line0      // reenable PB0 interrupts
 
-        vstr	reg_bit14_high,[r3,PR]                     // EXTI_PR 
+        vstr	reg_bit0_high,[r3,PR]                     // EXTI_PR 
         str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
 
-#ifdef DEBUG_EXTI14_END
+#ifdef DEBUG_EXTI0_END
         //delay 4
         ldr     r0,[r12,ODR]
-        bic     r0,#6                        //clearne 1. a 2. bit pocitano od 0
+        bic     r0,#6                        //clears bits 1. ands 2.
         str     r0,[r12,ODR]
 #endif
         dsb
