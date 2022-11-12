@@ -245,14 +245,14 @@ void config_PC4_int(void) {
         NVIC_Init(&NVIC_InitStruct);
 }
 
-/* EXIOA -> PB8, EXIOB -> PB9, MRD -> PB11, MWR -> PB12, IOWR -> PB0 */
+/* EXIOA -> PB8, EXIOB -> PB9, RST -> PB10, MRD -> PB11, MWR -> PB12, IOWR -> PB0 */
 void config_gpio_portb(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOB Periph clock enable */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_11 | GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -260,22 +260,32 @@ void config_gpio_portb(void) {
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
-/* Input Signals GPIO pins on ROMEN -> PC2, IORQ -> PC1, WR -> PC0 */
-/* Output Signals GPIO pins on ROMDIS -> PC3. need to make it open collector with a pullup */
+/* Input Signals GPIO pins on ROM1 -> PC1, ROM2 -> PC2, EXM -> PC3, MRQ -> PC4, only PC4 is important*/
+/* Output Signals GPIO pins on ROM0 -> PC0. need to make it open collector with a pullup, it disables MONITOR ROM */
 /* SD card uses PC10, PC11, PC12 out and PC8 in */
 void config_gpio_portc(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOC Periph clock enable */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
-	/* Configure GPIO Settings */
-	//GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 |GPIO_Pin_4 |GPIO_Pin_8 ;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 ;
+	//input pins
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 ;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+
+        //output pin
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_0;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP; //GPIO_OType_OD
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL; //GPIO_PuPd_DOWN; //GPIO_PuPd_UP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	//GPIOC->ODR = 0x0000; // defaultne je MONITOR pripnuty
+
 
 }
 
@@ -426,6 +436,14 @@ int __attribute__((optimize("O0")))  main(void) {
                 //printf("Mem mode is :%d\n", mem_mode);
                 }
                 #endif
+                int count = 0;
+                
+                while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
+
+                //holding RESET for more than ~4sec will also make STM32 reset 
+                if (count > 40000000) NVIC_SystemReset();
+               
+
                 /*
                 GPIOA->ODR = GPIOA->ODR | 0x01;         //rozsvit led
                 }

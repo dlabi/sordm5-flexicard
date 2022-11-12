@@ -1,4 +1,4 @@
-#define _VER_ 13.8
+#define _VER_ 13.9
 
 #include "main.h"
 
@@ -369,11 +369,20 @@ write_check:
         beq     end_EXTI4_IRQHandler                    //if ROM exit                                                           
            
 check_regions:
-        cmp     r1,#0x2000                              // je treba overit hw odpojeni monitoru, jinak hrozi hazard
-        blo     end_EXTI4_IRQHandler                    //0-1fff exit
+        cmp     r1,#0x2000                              
+       // blo     testMONITOR_ROM                       //0-1fff test if disabled MONITOR ROM, pri zapisu neni treba
+        blo     write_memory
         cmp     r1,#0x7000
         bhs     end_EXTI4_IRQHandler                    //7000-7fff exit
-
+        b       write_memory
+/*        
+testMONITOR_ROM:
+        b       write_memory                    
+        ldr     r0,[r2, B_TO_D_OFFSET + IDR]
+        lsrs	r0,r0,#8    
+        cmp     r0,#0xff                                
+        bne     end_EXTI4_IRQHandler                    //neni odpojeno, pryc
+*/
 write_memory:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr     reg_bit1_high,[r12,ODR]
@@ -421,9 +430,16 @@ rom:                                                    // cokoliv mimo rom rang
 ram:
         //musim dopsat test na odpojeny monitor, jinak muze nastat hazard v regionu 0000-1fff, zatim pro tuto oblast nebudeme emulovat RAM
         cmp     r1,#0x2000
-        blo     end_EXTI4_IRQHandler
-        nop                                             //ram 2000-6fff 
-ram1:
+        bhs     ram1                                    //vyssi nez 1fff  
+       // b       end_EXTI4_IRQHandler
+testMONITOR_ROM1:
+        delay   10                                      //pockej jestli se ozve MONITOR
+        ldr     r0,[r2, B_TO_D_OFFSET + IDR]            //0-1fff
+        lsrs	r0,r0,#8    
+        cmp     r0,#0xff
+        bne     end_EXTI4_IRQHandler                    //neni odpojeno, pryc  
+                                           
+ram1:                                                   //[0-1fff], 2000-6fff, 8000-ffff
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
 #ifdef DEBUG_EXTI4_RAM_READ
@@ -531,30 +547,51 @@ clear_pending_iorq_int0:                               // musi byt jinak nezachy
 #endif
         ldr     r1, =mem_mode
         strb    r0,[r1]
-        dsb                                             
-        b  end_EXTI0_IRQHandler
-
+        tst     r0, #1
 #ifdef DEBUG_EXTI0_DATA_OUT
-        tst     r0,#1
         ite     eq
         vstreq  reg_led_off,[r12,ODR] //0 ROM
         vstrne  reg_led_on,[r12,ODR]  //1 RAM
 #endif
+        ldr	r1,[r2, B_TO_C_OFFSET + MODER]
+        bne     disableROM       
+        bic     r1,#3                                //set PC0 to input -> high impedance
+        str     r1,[r2, B_TO_C_OFFSET + MODER]       
+        b       end_EXTI0_IRQHandler
+
+ disableROM:
+        ldr     r0,[r2, B_TO_C_OFFSET + ODR]
+        orr     r0, #1
+        str     r0,[r2, B_TO_C_OFFSET + ODR]          //set PC0 to high         
+        orr     r1, #1
+        str     r1,[r2, B_TO_C_OFFSET + MODER]        //set PC0 to output
+        dsb                                             
 
 end_EXTI0_IRQHandler:
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
-        ldr     r0,[r3,IMR]          // EXTI_IMR
-        orr     r0,#EXTI_Line0      // reenable PB0 interrupts
+        ldr     r0,[r3,IMR]                             // EXTI_IMR
+        orr     r0,#EXTI_Line0                          // reenable PB0 interrupts
 
-        vstr	reg_bit0_high,[r3,PR]                     // EXTI_PR 
-        str     r0,[r3,IMR]   // EXTI_IMR	// I think you need to reenable after the clear
+        vstr	reg_bit0_high,[r3,PR]                   // EXTI_PR 
+        str     r0,[r3,IMR]                             // EXTI_IMR	// I think you need to reenable after the clear
 
 #ifdef DEBUG_EXTI0_END
         //delay 4
         ldr     r0,[r12,ODR]
-        bic     r0,#6                        //clears bits 1. ands 2.
+        bic     r0,#6                                   //clears bits 1. ands 2.
         str     r0,[r12,ODR]
 #endif
         dsb
         bx      lr
+
+
+//set all the bits of Port B
+//GPIOB->BSRR = 0x0000FFFF;
+//Clear all the bits of Port B
+//GPIOB->BSRR = 0xFFFF0000;
+//Set the 5th bit of Port B
+//GPIOB->BSRR = (1U << 5); 
+//Clear the 5th bit of Port B
+//GPIOB->BSRR = (1U << 21);
+//nebo primo GPIOB->BRR = (1<<5); resetuje bit 5
