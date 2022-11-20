@@ -18,7 +18,7 @@ extern volatile uint8_t mem_mode;
 volatile uint8_t pre_mem_mode;
 
 #ifdef ENABLE_SWO
-//extern void initialise_monitor_handles(void);   /*rtt*/
+extern void initialise_monitor_handles(void);   /*rtt*/
 extern volatile uint32_t debug_var1;
 extern volatile uint32_t debug_var2;
 
@@ -416,50 +416,57 @@ int __attribute__((optimize("O0")))  main(void) {
         //SD_NVIC_Configuration(); 
 
 #ifdef ENABLE_SWO
-        //initialise_monitor_handles();   /*rtt*/
+        initialise_monitor_handles();   /*rtt*/
 	printf("Semi hosting on\n");
 #endif
-	
-	//__enable_irq();
 
+	//__enable_irq();
         blink_pa6_pa7(2);
 
         mem_mode = 0;
-        #ifdef ENABLE_SWO
-	//printf("%d\n", mem_mode);
-        #endif	
+
+#ifdef ENABLE_SWO
+	printf("%d\n", mem_mode);
+#endif	
 	while(1) {
                
-               #ifdef ENABLE_SWO
-                if ((mem_mode & 1) == 1){
-                
-                //printf("Mem mode is :%d\n", mem_mode);
+        #ifdef ENABLE_SWO
+                if ((mem_mode & 0x10) == 0)
+                {
+                        printf("Mem mode is :%d\n", mem_mode);
+                        mem_mode |= 0x10;
                 }
-                #endif
+                if ((debug_var2 & 0x10000) == 0)
+                {
+                  printf("Write to %04lx:%02lx\n", debug_var1, debug_var2);
+                  debug_var1 = 0x10000; debug_var2 = 0x10000;
+                }
+                else
+                if ((debug_var1 & 0x10000) == 0)
+                {
+                        printf("Read adr :%04lx\n", debug_var1);
+                        debug_var1 = 0x10000; 
+                }
+
+        #endif
                 int count = 0;
                 
                 while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
 
-                //holding RESET for more than ~4sec will also make STM32 reset 
-                if (count > 40000000) NVIC_SystemReset();
-               
-
-                /*
-                GPIOA->ODR = GPIOA->ODR | 0x01;         //rozsvit led
+                //holding RESET for more than ~3sec will also make STM32 reset 
+                if (count > 30000000) 
+                {
+#ifdef ENABLE_SWO
+                        printf("STM32 reset.\n");
+#endif                        
+                        NVIC_SystemReset();
                 }
-                else {
-
-                  GPIOA->ODR = GPIOA->ODR & 0xfe;      //zhasni led
+               
+                /*
+                GPIOA->BRR = 0xc0 ;         //rozsvit ledky
+                GPIOA->BSRR = 0xc0;         //zhasni ledky
                  */
                 }
-                 
-         /*               
-         if ((GPIOB->IDR & GPIO_Pin_11) == 0) 
-         {       
-	 GPIOA->ODR = 0xc0;
-         }
-         else {GPIOA->ODR = 0x81;}
-         */
         }	
         			   
 

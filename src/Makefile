@@ -33,8 +33,8 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
 CFLAGS += --specs=nosys.specs
-#used for semihosting debug, not needed for SWO/SWV, otherwise causing breakpoint on printfs!!!
-#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+#used for SWO/SWV too, otherwise not stable on printfs.
+CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1
@@ -49,17 +49,10 @@ CFLAGS += -ffixed-s9
 CFLAGS += -ffixed-s10 -ffixed-s11 -ffixed-s12 -ffixed-s13 -ffixed-s14 -ffixed-s15 -ffixed-s16 -ffixed-s17 -ffixed-s18 -ffixed-s19 -ffixed-s20
 CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s26 -ffixed-s27 -ffixed-s28 -ffixed-s29 -ffixed-s30 -ffixed-s31
 
-
-#CFLAGS += -DFDC_CMD_LOGGING
-#CFLAGS += -DFDC_STATUS_LOGGING
-#CFLAGS += -DFDC_READDATA_LOGGING
-#CFLAGS += -DFDC_LOGGING
-#CFLAGS += -DENABLE_SWO #debug swo
-#CFLAGS += -DDBGIO
-#CFLAGS += -DDEBUG_MAIN
-#CFLAGS += -DDEBUG_ROMEN
-#CFLAGS += -DDEBUG_IORQ
-#CFLAGS += -DDEBUG_EXTI1
+#CFLAGS += -DENABLE_SWO #debug swo, board must be in debugging mode oherwise it won't boot up if enabled, pozor kdyz povoleno r12 se nastavi jinak, proto nefunguji ostatni non-swo debugy!
+#CFLAGS += -DDEBUG_SWO_WRITE
+#CFLAGS += -DDEBUG_SWO_MONITOR_READ
+#CFLAGS += -DDEBUG_SWO_ADDRESS
 #CFLAGS += -DDEBUG_EXTI4_START
 #CFLAGS += -DDEBUG_EXTI4
 #CFLAGS += -DDEBUG_EXTI4_MRD
@@ -68,9 +61,10 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DDEBUG_EXTI4_TRISTATED
 #CFLAGS += -DDEBUG_EXTI4_END
 #CFLAGS += -DDEBUG_EXTI4_RAM_WRITE
-#CFLAGS += -DDEBUG_EXTI0_START
-#CFLAGS += -DDEBUG_EXTI0_6C
-#CFLAGS += -DDEBUG_EXTI0_END
+CFLAGS += -DDEBUG_EXTI0_START
+CFLAGS += -DDEBUG_EXTI0_6C
+CFLAGS += -DDEBUG_EXTI0_END
+CFLAGS += -DDEBUG_EXTI0_MEM_MODE
 
 # Include files from STM libraries
 CFLAGS += -I$(STM_COMMON)/Utilities/STM32F4-Discovery
