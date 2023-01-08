@@ -36,7 +36,7 @@
 #define reg_rom_base	s10
 #define reg_led_on	s11
 #define reg_gpiob_base	s12
-#define reg_bit6_high	s13
+#define reg_bit3_high	s13
 #define reg_bit4_high	s14
 #define reg_led_off	s15
 
@@ -79,7 +79,8 @@
 .macro unrolled_exit_EXTI4
 #if defined(DEBUG_EXTI4_END)
         delay 2
-        vstr     reg_led_off,[r12,ODR]
+        mov     r0,#0x00080000                          //clears bits 3
+        str     r0,[r12,BSRR]
 #endif
         dsb
 	bx	lr
@@ -303,8 +304,8 @@ init_fpu_regs:
         mov	r0,#0x10
 	vmov	reg_bit4_high,r0
 
-	mov	r0,#0x40
-	vmov	reg_bit6_high,r0
+	mov	r0,#0x08
+	vmov	reg_bit3_high,r0
 
 	mov	r0,#0x100
 	vmov	reg_bit8_high,r0
@@ -344,7 +345,7 @@ EXTI4_IRQHandler:
 #endif
 
 #ifdef DEBUG_EXTI4_START
-        vstr    reg_bit0_high,[r12,ODR]
+        vstr    reg_bit3_high,[r12,BSRR]
 #endif
        
 clear_pending_iorq_int:                                 
@@ -445,7 +446,9 @@ ram:
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
 #endif
-        b       end_EXTI4_IRQHandler  //docasne
+        //b       end_EXTI4_IRQHandler  //docasne
+
+                                                        // address <2000, MONITOR ROM must be disabled or we have hazard on the bus
 testMONITOR_ROM:
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            //read PC0
         lsrs	r0,r0,#8
@@ -550,7 +553,7 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
         tst     r0,#EXTI_Line0
         beq     end_EXTI0_IRQHandler1
  */        
-	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
+//	vstr	reg_bit0_high,[r3,PR]	                // clear interrupt
 
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get IOWR
@@ -594,8 +597,7 @@ disableROM:
         dsb                                             
 
 end_EXTI0_IRQHandler:
-/*
-neni treba
+
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]                             // EXTI_IMR
@@ -603,10 +605,10 @@ neni treba
 
         vstr	reg_bit0_high,[r3,PR]                   // EXTI_PR 
         str     r0,[r3,IMR]                             // EXTI_IMR	// I think you need to reenable after the clear
-*/
+
 #ifdef DEBUG_EXTI0_END
         //delay 4
-        mov     r0,#0x00060000                          //clears bits 1. ands 2.
+        mov     r0,#0x00060000                          //clears bits 1. and 2.
         str     r0,[r12,BSRR]
 #endif
         //cpsie	i                                       //enable interrupts

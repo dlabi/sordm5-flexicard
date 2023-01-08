@@ -326,7 +326,7 @@ void config_gpio_addr(void) {
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 }
 
-/* Debug GPIO pins on PA0-PA2, PA6-7 LEDS */
+/* Debug GPIO pins on PA0-PA3, PA6-7 LEDS */
 void config_gpio_dbg(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOA Periph clock enable */
@@ -335,7 +335,7 @@ void config_gpio_dbg(void) {
 
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_6 | GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
