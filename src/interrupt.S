@@ -1,4 +1,4 @@
-#define _VER_ 14.0
+#define _VER_ 14.1
 
 #include "main.h"
 
@@ -92,7 +92,7 @@
 // Can put up to four 16K roms here which will get mapped to rom 12, 13, 14 and 15
 rom_base:
 // be careful if you add roms and later delete them. The old ones might be still in the STM32 flash
-.incbin "../roms/basic-i.rom"
+.incbin "../roms/basic-f.rom"
 
         .equ PERIPH_BASE     ,   0x40000000                                                                
         .equ PERIPH_BASE_APB1,   (PERIPH_BASE + 0x00000)
@@ -357,44 +357,48 @@ clear_pending_iorq_int:
         tst     r0,#_MREQ_MASK
         bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
 
+        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+
+test_internal_RAM:      
+        mov     r0, #0x7000             
+        cmp     r1, r0
+        blt     read_write
+        mov     r0, #0x8000
+        cmp     r1, r0
+        blt     end_EXTI4_IRQHandler                    // internal RAM 7000-7fff get out 
+
+read_write:
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
-        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+
         ldr     r0, =mem_mode                           // get if ROMS are disabled
         ldrb    r0, [r0]   
+
 #ifdef  DEBUG_SWO_ADDRESS       
         str     r1, [r12]
 #endif
         beq     read_memory
 
-write_check:
-        tst     r1,#0x8000                              // check A15. If it is high adr is 8000-ffff and no need to test mem_mode, always writeable 
-        bne     write_memory
-#ifdef DEBUG_EXTI4_OUT6C
-        ldr     r3,[r12,ODR]
-        bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
-        str     r3,[r12,ODR]
-#endif
-        tst     r0, #1                                  //1-RAM 0-ROM
-        beq     end_EXTI4_IRQHandler                    //if ROM active no write, exit                                                           
-           
-check_regions:
-      //  cmp     r1,#0x2000                              
-       // blo     testMONITOR_ROM                       //0-1fff test if disabled MONITOR ROM, pri zapisu neni treba
-      //  blo     write_memory
-        cmp     r1,#0x7000
-        bhs     end_EXTI4_IRQHandler                    //7000-7fff, internal RAM, exit
- //       b       write_memory
-/*        
-testMONITOR_ROM:                
-        ldr     r0,[r2, B_TO_D_OFFSET + IDR]
-        lsrs	r0,r0,#8    
-        cmp     r0,#0xff                                
-        bne     end_EXTI4_IRQHandler                    //neni odpojeno, pryc
-*/
-write_memory:
+write_check:                                            // same as 64kbf ver 2c
+        ldr     r3, =mem_map
+        ldr     r3, [r3,r0, lsl #2]                     // get starting offset from table
+        cmp     r1, r3
+        bge     writable
+        b       end_EXTI4_IRQHandler
+
+mem_map:                                                // mem mode write address start
+    .word 0x8000                                        // mode 0
+    .word 0x0000
+    .word 0x0000
+    .word 0x8000
+    .word 0x4000
+    .word 0x0000
+    .word 0x0000
+    .word 0x10000                                       // mode 7 - write disabled
+                                                                  
+writable:
 #ifdef DEBUG_EXTI4_RAM_WRITE
-        vstr     reg_bit1_high,[r12,ODR]
+        vstr    reg_bit1_high,[r12,ODR]
 #endif
         vmov    r3, reg_high_64k_base
 	delay 10
@@ -408,23 +412,40 @@ write_memory:
 #endif
         b       end_EXTI4_IRQHandler
 
+jump_table:
+        .word   mode0_5                                 // mode 0
+        .word   mode1_3_4
+        .word   mode2
+        .word   mode1_3_4
+        .word   mode1_3_4
+        .word   mode0_5
+        .word   mode6                                   // mode 6
+
 read_memory:
 #ifdef DEBUG_EXTI4_RAM_TEST
-        vstr     reg_bit0_high,[r12,ODR]
+        vstr    reg_bit0_high,[r12,ODR]
 #endif
+
+        cmp     r0, #7                          
+        beq     end_EXTI4_IRQHandler                    // mode 7 - exit
+
+        ldr	r3, =jump_table
+	ldr	pc, [r3, r0, lsl #2]
+
+mode0_5:
         tst     r1,#0x8000
-        bne     ram1                                    //8000-ffff read from RAM
-        cmp     r1,#0x7000
-        bhs     end_EXTI4_IRQHandler                    //7000-7fff, internal Sord RAM, exit
-        ldr     r0, =mem_mode
-        ldrb    r0, [r0]                                //read mem_mode
-#ifdef DEBUG_EXTI4_OUT6C
-        ldr     r3,[r12,ODR]
-        bfi     r3,r0,#0, #1                            //zkopiruje bit 0. z r0 do r3
-        str     r3,[r12,ODR]
-#endif 
-        tst     r0, #1                                  //1-RAM 0-ROM
-        bne     ram
+        bne     ram                                     //8000-ffff read from RAM
+        b       rom                                     //0000-6fff read from ROM
+mode1_3_4:                                              
+        b       ram                                     //0000-ffff read from RAM
+mode2:  cmp     r1,#0x2000                              
+        blt     rom                                     //0000-1fff read from ROM
+        b       ram                                     //2000-ffff read from RAM
+mode6:  tst     r1,#0x8000                              
+        bne     ram                                     //8000-ffff read from RAM
+        cmp     r1,#0x2000                              
+        blt     rom                                     //0000-1fff read from ROM
+        b       end_EXTI4_IRQHandler                    //2000-6fff read from other cartridge
 
 rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
         vmov	r3,reg_rom_base                         
@@ -440,29 +461,18 @@ rom:                                                    // cokoliv mimo rom rang
         bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
         b       read
 
-ram:
-        cmp     r1,#0x2000
-        bhs     ram1                                    //address >1fff, read from RAM  
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
 #endif
-        //b       end_EXTI4_IRQHandler  //docasne
-
+       // b       end_EXTI4_IRQHandler  //docasne
                                                         // address <2000, MONITOR ROM must be disabled or we have hazard on the bus
 testMONITOR_ROM:
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            //read PC0
         lsrs	r0,r0,#8
         tst     r0,#1                                   //if high then MONITOR ROM must be disabled, without mod now should be low
         beq     end_EXTI4_IRQHandler                    
-/*
-testMONITOR_ROM:
-        //delay   10                                   //pockej jestli se ozve MONITOR
-        ldr     r0,[r2, B_TO_D_OFFSET + IDR]            //0-1fff
-        lsrs	r0,r0,#8    
-        cmp     r0,#0xff                                // is bus in high impedance??
-        bne     end_EXTI4_IRQHandler                    // no, probably ROM is present, exit
-*/                                           
-ram1:                                                   //[0-1fff], 2000-6fff, 8000-ffff
+
+ram:                                                    //0000-1fff, 2000-6fff, 8000-ffff
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
 #ifdef DEBUG_EXTI4_RAM_READ

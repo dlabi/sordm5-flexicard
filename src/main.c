@@ -424,7 +424,7 @@ int __attribute__((optimize("O0")))  main(void) {
         blink_pa6_pa7(2);
 
         mem_mode = 0;
-
+       
 #ifdef ENABLE_SWO
 	printf("%d\n", mem_mode);
 #endif	
@@ -452,6 +452,9 @@ int __attribute__((optimize("O0")))  main(void) {
                 int count = 0;
                 
                 while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
+                
+                //short reset resets mem_mode
+                if (count > 10) mem_mode = 0;
 
                 //holding RESET for more than ~3sec will also make STM32 reset 
                 if (count > 30000000) 
@@ -462,14 +465,18 @@ int __attribute__((optimize("O0")))  main(void) {
                         NVIC_SystemReset();
                 }
                
-                /*
-                GPIOA->BRR = 0xc0 ;         //rozsvit ledky
-                GPIOA->BSRR = 0xc0;         //zhasni ledky
-                 */
+                if (mem_mode == 0) 
+                {
+                GPIOA->BSRRL = 0xc0;         //zhasni obe ledky
                 }
+                else
+                {
+                GPIOA->BSRRH = 0x80 ;         //rozsvit ledku
+                }
+                
         }	
         			   
-
+}
 		
 
 
