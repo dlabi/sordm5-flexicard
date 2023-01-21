@@ -1,4 +1,81 @@
-#define _VER_ 14.1
+//              Verze LZR ( 2C )
+//              ================
+//              
+//              +------------+
+//              |////////////|	READ ONLY
+//              +------------+
+//              |\\\\\\\\\\\\|	WRITE ONLY
+//              +------------+
+//              |XXXXXXXXXXXX|	RW
+//              +------------+
+//              |            |	DISABLED
+//              +------------+
+//              
+//              	0   0   0   1   1   2   2   2   3   3   4   4   4   5   5   6   6
+//              kB	0   4   8   2   6   0   4   8   2   6   0   4   8   2   6   0   4
+//              	+-------+-------------------+
+//              ROM	|MONITOR|      BASIC-F      |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              RAM	|       |       |       |       |       |       |       |       |
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              CART    |       |       |       |       |       |       |       |       |
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|///////|///////////////////|
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 0	|       |       |       |   |XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|       |                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 1	|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|///////|                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 2	|\\\\\\\|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|       |                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 3	|///////|///////|///////|///|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|       |                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 4	|///////|///////|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|///////|///////////////////|
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 5	|\\\\\\\|\\\\\\\|\\\\\\\|\\\|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              
+//              	+-------+-------------------+
+//              	|///////|                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 6	|\\\\\\\|\\\\\\\|\\\\\\\|\\\|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              		|///////|///////|///|
+//              		+-------+-------+---+
+//              
+//              	+-------+-------------------+
+//              	|       |                   |
+//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
+//              MOD 7	|       |       |       |       |       |       |       |       |
+//              	+-------+-------+-------+-------+-------+-------+-------+-------+
+//              	|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
+//              	+---------------------------------------------------------------+
+//              
+
+
+#define _VER_ 14.2
 
 #include "main.h"
 
@@ -33,7 +110,7 @@
 #define reg_exti_base	s7
 #define reg_moder_dataout	s8
 #define reg_moder_datain	s9
-#define reg_rom_base	s10
+#define reg_rom_base_2000	s10
 #define reg_led_on	s11
 #define reg_gpiob_base	s12
 #define reg_bit3_high	s13
@@ -310,8 +387,8 @@ init_fpu_regs:
 	mov	r0,#0x100
 	vmov	reg_bit8_high,r0
 
-        mov32	r0,rom_base
-	vmov	reg_rom_base,r0
+        mov32	r0,rom_base - 0x2000
+	vmov	reg_rom_base_2000,r0
 
         mov	r0,#0x44
 	vmov	reg_led_on,r0
@@ -324,14 +401,14 @@ init_fpu_regs:
 
 	bx	lr
 
-
-// _MREQ Handler. Int on falling edge
+//************************************************************************************************************************
+// _MREQ Handler. Interrupt on falling edge
 
 // meaning of 'global' registers, all should be pushed/popped automatically
 // r0 - tmp
 // r1 - address from GPIOE and also used for switch MODER to either OUTPUT or INPUT
 // r2 - reg_gpiob_base
-// r3 - exti_base
+// r3 - tmp, exti_base
 // r12 - reg_gpioa_base - debug register
 
 .type EXTI4_IRQHandler, %function
@@ -359,19 +436,17 @@ clear_pending_iorq_int:
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
 
-test_internal_RAM:      
-        mov     r0, #0x7000             
-        cmp     r1, r0
+test_internal_RAM:             
+        cmp     r1, #0x7000
         blt     read_write
-        mov     r0, #0x8000
-        cmp     r1, r0
+        cmp     r1, #0x8000
         blt     end_EXTI4_IRQHandler                    // internal RAM 7000-7fff get out 
 
 read_write:
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
 
-        ldr     r0, =mem_mode                           // get if ROMS are disabled
+        ldr     r0, =mem_mode                           // get mem work mode
         ldrb    r0, [r0]   
 
 #ifdef  DEBUG_SWO_ADDRESS       
@@ -410,7 +485,7 @@ writable:
         str     r1,[r12]
         str     r0,[r12, #4]
 #endif
-        b       end_EXTI4_IRQHandler
+        b       end_EXTI4_IRQHandler                    //write done
 
 jump_table:
         .word   mode0_5                                 // mode 0
@@ -425,41 +500,44 @@ read_memory:
 #ifdef DEBUG_EXTI4_RAM_TEST
         vstr    reg_bit0_high,[r12,ODR]
 #endif
-
         cmp     r0, #7                          
         beq     end_EXTI4_IRQHandler                    // mode 7 - exit
-
+        //b mode0_5  // <------------------------DOCASNE
         ldr	r3, =jump_table
-	ldr	pc, [r3, r0, lsl #2]
+	ldr	r3, [r3, r0, lsl #2]
+        mov     pc, r3
 
 mode0_5:
         tst     r1,#0x8000
         bne     ram                                     //8000-ffff read from RAM
-        b       rom                                     //0000-6fff read from ROM
+        cmp     r1,#0x2000                              
+        blt     end_EXTI4_IRQHandler                    //0000-1fff read from Sord ROM
+        vmov	r3,reg_rom_base_2000
+        //sub     r1, #0x2000                             // important, subtract 0x2000 'cos our rom is from 0000 at rom_base area
+        b       read                                    //2000-6fff read from ROM
 mode1_3_4:                                              
         b       ram                                     //0000-ffff read from RAM
 mode2:  cmp     r1,#0x2000                              
-        blt     rom                                     //0000-1fff read from ROM
+        blt     end_EXTI4_IRQHandler                    //0000-1fff read from Sord ROM
         b       ram                                     //2000-ffff read from RAM
 mode6:  tst     r1,#0x8000                              
         bne     ram                                     //8000-ffff read from RAM
-        cmp     r1,#0x2000                              
-        blt     rom                                     //0000-1fff read from ROM
+                                                        //0000-1fff read from Sord ROM
         b       end_EXTI4_IRQHandler                    //2000-6fff read from other cartridge
 
 rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
-        vmov	r3,reg_rom_base                         
-        ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
-        sub     r1, #0x2000                             // offset address from 0
-        cmp     r0,#1
-        IT EQ
-        subeq   r1,#0x2000                              // rom type 01 from 4000: offset address from 0
-        ITE GT                                          
-        movgt   r0,#0x4000                              // type 02
-        movle   r0,#0x2000                              // type 00
-        cmp     r1,r0                                   // test if we are in rom range
-        bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
-        b       read
+//        vmov	r3,reg_rom_base                       
+//        ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
+//        sub     r1, #0x2000                             // offset address from 0
+//        cmp     r0,#1
+//        IT EQ
+//        subeq   r1,#0x2000                              // rom type 01 from 4000: offset address from 0
+//        ITE GT                                          
+//        movgt   r0,#0x4000                              // type 02
+//        movle   r0,#0x2000                              // type 00
+//        cmp     r1,r0                                   // test if we are in rom range
+//        bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
+//        b       read
 
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
@@ -496,8 +574,6 @@ read:
 #endif
 
 // Use WFE to wait until _MREQ goes high
-
-
         vmov	r3,reg_exti_base
 
     // disable neni potreba je automaticky, ale re-enable ji potreba je   
@@ -541,6 +617,7 @@ end_EXTI4_IRQHandler:
 
 unrolled_exit_EXTI4
 
+//******************************************************************************************************************************************
 
 // _IORW interrupt -ve edge
 .type EXTI0_IRQHandler, %function
@@ -572,7 +649,7 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
      
 	ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
 	and     r1, #0xff                               // get the rid of upper address byte, it's important otherwise next check fails!  
-        cmp     r1, #0x6c
+        cmp     r1, #0x30
         bne	end_EXTI0_IRQHandler
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
         lsrs	r0,r0,#8                                // PD8-PD15 -> shift to 0
