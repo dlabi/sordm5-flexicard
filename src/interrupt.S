@@ -75,7 +75,7 @@
 //              
 
 
-#define _VER_ 14.2
+#define _VER_ 14.3
 
 #include "main.h"
 
@@ -387,7 +387,7 @@ init_fpu_regs:
 	mov	r0,#0x100
 	vmov	reg_bit8_high,r0
 
-        mov32	r0,rom_base - 0x2000
+        mov32	r0,rom_base - 0x2000            //neni pak treba menit adr v r1, a ROM je tak "virtualne" od 2000
 	vmov	reg_rom_base_2000,r0
 
         mov	r0,#0x44
@@ -432,7 +432,7 @@ clear_pending_iorq_int:
         vmov	r2,reg_gpiob_base
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR
         tst     r0,#_MREQ_MASK
-        bne     end_EXTI4_IRQHandler                    //exit spurious IRQ
+        bne     end_EXTI4_IRQHandler                    // exit spurious IRQ
 
         ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
 
@@ -446,7 +446,7 @@ read_write:
         ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
 
-        ldr     r0, =mem_mode                           // get mem work mode
+        ldr     r0, =mem_mode                           // get mem working mode
         ldrb    r0, [r0]   
 
 #ifdef  DEBUG_SWO_ADDRESS       
@@ -456,7 +456,7 @@ read_write:
 
 write_check:                                            // same as 64kbf ver 2c
         ldr     r3, =mem_map
-        ldr     r3, [r3,r0, lsl #2]                     // get starting offset from table
+        ldr     r3, [r3,r0, lsl #2]                     // get write starting offset from mem_map table
         cmp     r1, r3
         bge     writable
         b       end_EXTI4_IRQHandler
@@ -475,17 +475,17 @@ writable:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,ODR]
 #endif
-        vmov    r3, reg_high_64k_base
-	delay 10
+        vmov    r3, reg_high_64k_base                   // begining of RAM 
+	delay 10      // nevim zdali je nutne
 
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
-	lsrs	r0,r0,#8                                //PD16-PD8 >> 8
-	strb	r0,[r3,r1]                              //write to the RAM
+	lsrs	r0,r0,#8                                // PD16-PD8 >> 8
+	strb	r0,[r3,r1]                              // write to the RAM
 #ifdef DEBUG_SWO_WRITE
         str     r1,[r12]
         str     r0,[r12, #4]
 #endif
-        b       end_EXTI4_IRQHandler                    //write done
+        b       end_EXTI4_IRQHandler                    // write done
 
 jump_table:
         .word   mode0_5                                 // mode 0
@@ -502,41 +502,42 @@ read_memory:
 #endif
         cmp     r0, #7                          
         beq     end_EXTI4_IRQHandler                    // mode 7 - exit
-        //b mode0_5  // <------------------------DOCASNE
+
         ldr	r3, =jump_table
-	ldr	r3, [r3, r0, lsl #2]
-        mov     pc, r3
+	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, doesn't worked for me, possible usage of dsb instruction???
+        //dsb
+        mov     pc, r3                                  
 
 mode0_5:
         tst     r1,#0x8000
-        bne     ram                                     //8000-ffff read from RAM
+        bne     ram                                     // 8000-ffff read from RAM
         cmp     r1,#0x2000                              
-        blt     end_EXTI4_IRQHandler                    //0000-1fff read from Sord ROM
-        vmov	r3,reg_rom_base_2000
-        //sub     r1, #0x2000                             // important, subtract 0x2000 'cos our rom is from 0000 at rom_base area
-        b       read                                    //2000-6fff read from ROM
+        blt     end_EXTI4_IRQHandler                    // 0000-1fff read from Sord ROM
+        vmov	r3,reg_rom_base_2000                    // rombase virtually starting at 2000
+        //sub     r1, #0x2000                           // important, subtract 0x2000 'cos our rom is from 0000 at rom_base area
+        b       read                                    // 2000-6fff read from ROM
 mode1_3_4:                                              
-        b       ram                                     //0000-ffff read from RAM
+        b       ram                                     // 0000-ffff read from RAM
 mode2:  cmp     r1,#0x2000                              
-        blt     end_EXTI4_IRQHandler                    //0000-1fff read from Sord ROM
-        b       ram                                     //2000-ffff read from RAM
+        blt     end_EXTI4_IRQHandler                    // 0000-1fff read from Sord ROM
+        b       ram                                     // 2000-ffff read from RAM
 mode6:  tst     r1,#0x8000                              
-        bne     ram                                     //8000-ffff read from RAM
-                                                        //0000-1fff read from Sord ROM
-        b       end_EXTI4_IRQHandler                    //2000-6fff read from other cartridge
+        bne     ram                                     // 8000-ffff read from RAM
+                                                        // 0000-1fff read from Sord ROM
+        b       end_EXTI4_IRQHandler                    // 2000-6fff read from other cartridge
 
 rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
 //        vmov	r3,reg_rom_base                       
-//        ldrb    r0,[r3]                                 // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
-//        sub     r1, #0x2000                             // offset address from 0
+//        ldrb    r0,[r3]                               // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
+//        sub     r1, #0x2000                           // offset address from 0
 //        cmp     r0,#1
 //        IT EQ
-//        subeq   r1,#0x2000                              // rom type 01 from 4000: offset address from 0
+//        subeq   r1,#0x2000                            // rom type 01 from 4000: offset address from 0
 //        ITE GT                                          
-//        movgt   r0,#0x4000                              // type 02
-//        movle   r0,#0x2000                              // type 00
-//        cmp     r1,r0                                   // test if we are in rom range
-//        bcs.n   end_EXTI4_IRQHandler                    // no we aren't -> exit
+//        movgt   r0,#0x4000                            // type 02
+//        movle   r0,#0x2000                            // type 00
+//        cmp     r1,r0                                 // test if we are in rom range
+//        bcs.n   end_EXTI4_IRQHandler                  // no we aren't -> exit
 //        b       read
 
 #ifdef  DEBUG_SWO_MONITOR_READ
@@ -545,12 +546,12 @@ rom:                                                    // cokoliv mimo rom rang
        // b       end_EXTI4_IRQHandler  //docasne
                                                         // address <2000, MONITOR ROM must be disabled or we have hazard on the bus
 testMONITOR_ROM:
-        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            //read PC0
+        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // read PC0
         lsrs	r0,r0,#8
-        tst     r0,#1                                   //if high then MONITOR ROM must be disabled, without mod now should be low
+        tst     r0,#1                                   // if high then MONITOR ROM must be disabled, without mod now should be low
         beq     end_EXTI4_IRQHandler                    
 
-ram:                                                    //0000-1fff, 2000-6fff, 8000-ffff
+ram:                                                    // 0000-1fff, 2000-6fff, 8000-ffff
         vmov    r3, reg_high_64k_base                   // read from RAM
                  
 #ifdef DEBUG_EXTI4_RAM_READ
@@ -562,7 +563,7 @@ read:
         vstr     reg_bit1_high,[r12,ODR]
 #endif
         ldrb    r0,[r3,r1]                              // get the byte from a 16K ROM or RAM
-        lsls    r0,r0, #8                               //shift to PD15-PD8
+        lsls    r0,r0, #8                               // shift to PD15-PD8
         
         vmov	r1,reg_moder_dataout
 
@@ -593,7 +594,7 @@ read:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe                                             // wait for the positive edge of _MREQ
 
-        //databus_read_extra_delay
+        delay 8         //nevim zdali nutne, testuji nestabilitu
 
 // _MREQ should have just gone high here
         str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
@@ -602,7 +603,7 @@ read:
         mov     r0,#0xc5
         str     r0,[r12, ODR]
 #endif
-        clear_EXTI4_RTSR                                //zakaz INT na nabeznou hranu, pouziva r3
+        clear_EXTI4_RTSR                                // zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:           
        
@@ -623,20 +624,20 @@ unrolled_exit_EXTI4
 .type EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
 
-        //cpsid	i                                       //disable irq
+        //cpsid	i                                       // disable irq
 #ifdef ENABLE_SWO 
         vmov    r12,reg_debug_var1
 #else
         vmov	r12,reg_gpioa_base
 #endif
 #ifdef DEBUG_EXTI0_START
-        mov     r0, #4                                  //sets bit 3, keeps other bits untouched , indikuje aktivni int0
+        mov     r0, #4                                  // sets bit 3, keeps other bits untouched , indikuje aktivni int0
         str     r0,[r12,BSRR]
 #endif                      
 
 clear_pending_iorq_int0:                                // musi byt jinak nezachytime vsechny edge
-	vmov	r3,reg_exti_base		        // s7 = EXTI
-/*      ldr     r0,[r3,PR]
+/*	vmov	r3,reg_exti_base		        // s7 = EXTI
+        ldr     r0,[r3,PR]
         tst     r0,#EXTI_Line0
         beq     end_EXTI0_IRQHandler1
  */        
@@ -660,31 +661,35 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
         str     r1,[r12,ODR]
 #endif
         ldr     r1, =mem_mode
-        strb    r0,[r1]                                 //set mem_mode
-        tst     r0, #1
+        strb    r0,[r1]                                 // set mem_mode
+        mov     r3, #0b10011010                         // MONITOROM disable map: bit 7 = mode 7, bit 6=mode 6 etc., 1=disabled MONITOR, 0=enabled
+        mov     r1, #1
+        lsl	r1, r0
+        tst     r3, r1                                  // test bit from map for current mem_mode
+        ldr	r1,[r2, B_TO_C_OFFSET + MODER] 
+        bne     disableMONITOR                          // if is set disable MONITOR ROM
+
 #ifdef DEBUG_EXTI0_MEM_MODE
         ite     eq
-        vstreq  reg_led_off,[r12,ODR]                   //0 ROM
-        vstrne  reg_led_on,[r12,ODR]                    //1 RAM
+        vstreq  reg_led_off,[r12,ODR]                   
+        vstrne  reg_led_on,[r12,ODR]                    
 #endif
 
-        ldr	r1,[r2, B_TO_C_OFFSET + MODER]          
-        bne     disableROM       
-        bic     r1,#3                                   //set PC0 as input pin -> high impedance
+enableMONITOR:    
+        bic     r1,#3                                   // set PC0 as input pin -> high impedance
         str     r1,[r2, B_TO_C_OFFSET + MODER]
         dsb       
         b       end_EXTI0_IRQHandler
 
-disableROM:
+disableMONITOR:
         mov     r0, #1
-        str     r0,[r2, B_TO_C_OFFSET + BSRR]         //set PC0 to high which disable MONITOR rom         
-        bic     r1, #2                                //clears bit 1  
-        orr     r1, #1                                //sets bit 0
-        str     r1,[r2, B_TO_C_OFFSET + MODER]        //set PC0 to output
+        str     r0,[r2, B_TO_C_OFFSET + BSRR]           // set PC0 to high which disable MONITOR rom         
+        bic     r1, #2                                  // clears bit 1  
+        orr     r1, #1                                  // sets bit 0
+        str     r1,[r2, B_TO_C_OFFSET + MODER]          // set PC0 to output
         dsb                                             
 
 end_EXTI0_IRQHandler:
-
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]                             // EXTI_IMR
@@ -695,20 +700,9 @@ end_EXTI0_IRQHandler:
 
 #ifdef DEBUG_EXTI0_END
         //delay 4
-        mov     r0,#0x00060000                          //clears bits 1. and 2.
+        mov     r0,#0x00060000                          // clears bits 1. and 2.
         str     r0,[r12,BSRR]
 #endif
-        //cpsie	i                                       //enable interrupts
+        //cpsie	i                                       // enable interrupts
         dsb
         bx      lr
-
-
-//set all the bits of Port B
-//GPIOB->BSRR = 0x0000FFFF;
-//Clear all the bits of Port B
-//GPIOB->BSRR = 0xFFFF0000;
-//Set the 5th bit of Port B
-//GPIOB->BSRR = (1U << 5); 
-//Clear the 5th bit of Port B
-//GPIOB->BSRR = (1U << 21);
-//nebo primo v c++ GPIOB->BRR = (1<<5); resetuje bit 5

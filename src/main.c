@@ -453,8 +453,8 @@ int __attribute__((optimize("O0")))  main(void) {
                 
                 while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
                 
-                //short reset resets mem_mode
-                if (count > 10) mem_mode = 0;
+                //longer reset resets mem_mode
+                if (count > 10000000) mem_mode = 0;
 
                 //holding RESET for more than ~3sec will also make STM32 reset 
                 if (count > 30000000) 
@@ -465,7 +465,7 @@ int __attribute__((optimize("O0")))  main(void) {
                         NVIC_SystemReset();
                 }
                
-                if (mem_mode == 0) 
+                if (mem_mode == 0 || mem_mode == 2 || mem_mode == 5 || mem_mode == 6) 
                 {
                 GPIOA->BSRRL = 0xc0;         //zhasni obe ledky
                 }
