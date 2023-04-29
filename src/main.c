@@ -341,6 +341,15 @@ void config_gpio_dbg(void) {
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+        //input pins, custom button 
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
 }
 
 
@@ -436,6 +445,7 @@ int __attribute__((optimize("O0")))  main(void) {
                         printf("Mem mode is :%d\n", mem_mode);
                         mem_mode |= 0x10;
                 }
+                /*
                 if ((debug_var2 & 0x10000) == 0)
                 {
                   printf("Write to %04lx:%02lx\n", debug_var1, debug_var2);
@@ -447,6 +457,7 @@ int __attribute__((optimize("O0")))  main(void) {
                         printf("Read adr :%04lx\n", debug_var1);
                         debug_var1 = 0x10000; 
                 }
+                */
 
         #endif
                 int count = 0;
@@ -465,7 +476,7 @@ int __attribute__((optimize("O0")))  main(void) {
                         NVIC_SystemReset();
                 }
                
-                if (mem_mode == 0 || mem_mode == 2 || mem_mode == 5 || mem_mode == 6) 
+                if ((mem_mode & 0xf)  == 0 || (mem_mode & 0xf) == 2 || (mem_mode & 0xf)== 5 || (mem_mode & 0xf) == 6) 
                 {
                 GPIOA->BSRRL = 0xc0;         //zhasni obe ledky
                 }

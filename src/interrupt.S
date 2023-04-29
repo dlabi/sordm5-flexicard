@@ -1,81 +1,4 @@
-//              Verze LZR ( 2C )
-//              ================
-//              
-//              +------------+
-//              |////////////|	READ ONLY
-//              +------------+
-//              |\\\\\\\\\\\\|	WRITE ONLY
-//              +------------+
-//              |XXXXXXXXXXXX|	RW
-//              +------------+
-//              |            |	DISABLED
-//              +------------+
-//              
-//              	0   0   0   1   1   2   2   2   3   3   4   4   4   5   5   6   6
-//              kB	0   4   8   2   6   0   4   8   2   6   0   4   8   2   6   0   4
-//              	+-------+-------------------+
-//              ROM	|MONITOR|      BASIC-F      |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              RAM	|       |       |       |       |       |       |       |       |
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              CART    |       |       |       |       |       |       |       |       |
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|///////|///////////////////|
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 0	|       |       |       |   |XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|       |                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 1	|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|///////|                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 2	|\\\\\\\|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|       |                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 3	|///////|///////|///////|///|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|       |                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 4	|///////|///////|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|///////|///////////////////|
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 5	|\\\\\\\|\\\\\\\|\\\\\\\|\\\|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              
-//              	+-------+-------------------+
-//              	|///////|                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 6	|\\\\\\\|\\\\\\\|\\\\\\\|\\\|XXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              		|///////|///////|///|
-//              		+-------+-------+---+
-//              
-//              	+-------+-------------------+
-//              	|       |                   |
-//              	+-------+-------+-------+---+---+-------+-------+-------+-------+
-//              MOD 7	|       |       |       |       |       |       |       |       |
-//              	+-------+-------+-------+-------+-------+-------+-------+-------+
-//              	|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|XXXXXXX|
-//              	+---------------------------------------------------------------+
-//              
-
-
-#define _VER_ 14.3
+#define _VER_ 14.4
 
 #include "main.h"
 
@@ -289,7 +212,8 @@ rom_base:
 
 
 .section .data
-
+high_64k_base:
+.incbin "../roms/msx_dump.rom"
 // main_thread_data must immediately follow main_thread_command
 main_thread_command:
 	.word	0x00000000			// command word
@@ -310,7 +234,7 @@ low_64k_base:
        //.lcomm low_64k_base,0x10000               
 
 .section .bss
-        .lcomm high_64k_base,0x10000                
+   //     .lcomm high_64k_base,0x10000                
 
   //      .lcomm  EXTI4_tempvar,4
 
@@ -447,8 +371,10 @@ read_write:
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
 
         ldr     r0, =mem_mode                           // get mem working mode
-        ldrb    r0, [r0]   
-
+        ldrb    r0, [r0]
+#ifdef  DEBUG_SWO  
+        and     r0, #0x0f                               //pri swo debugu nastavuji 8. bit jako dirty indikator, podle ktereho tiskneme pouze pri zmene modu 
+#endif
 #ifdef  DEBUG_SWO_ADDRESS       
         str     r1, [r12]
 #endif
@@ -470,7 +396,7 @@ mem_map:                                                // mem mode write addres
     .word 0x0000
     .word 0x0000
     .word 0x10000                                       // mode 7 - write disabled
-                                                                  
+.align 4                                                                  
 writable:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,ODR]
@@ -486,7 +412,7 @@ writable:
         str     r0,[r12, #4]
 #endif
         b       end_EXTI4_IRQHandler                    // write done
-
+.align 4
 jump_table:
         .word   mode0_5                                 // mode 0
         .word   mode1_3_4
@@ -495,13 +421,18 @@ jump_table:
         .word   mode1_3_4
         .word   mode0_5
         .word   mode6                                   // mode 6
-
+        .word   mode7                                   // mode 7
+.align 4
 read_memory:
 #ifdef DEBUG_EXTI4_RAM_TEST
         vstr    reg_bit0_high,[r12,ODR]
 #endif
-        cmp     r0, #7                          
-        beq     end_EXTI4_IRQHandler                    // mode 7 - exit
+
+//        cmp     r0, #0
+//        beq     mode0_5
+//        cmp     r0, #1
+//        beq     mode1_3_4
+//        b       end_EXTI4_IRQHandler 
 
         ldr	r3, =jump_table
 	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, doesn't worked for me, possible usage of dsb instruction???
@@ -524,7 +455,7 @@ mode2:  cmp     r1,#0x2000
 mode6:  tst     r1,#0x8000                              
         bne     ram                                     // 8000-ffff read from RAM
                                                         // 0000-1fff read from Sord ROM
-        b       end_EXTI4_IRQHandler                    // 2000-6fff read from other cartridge
+mode7:  b       end_EXTI4_IRQHandler                    // 2000-6fff read from other cartridge
 
 rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
 //        vmov	r3,reg_rom_base                       
@@ -553,7 +484,10 @@ testMONITOR_ROM:
 
 ram:                                                    // 0000-1fff, 2000-6fff, 8000-ffff
         vmov    r3, reg_high_64k_base                   // read from RAM
-                 
+      //docasne
+//
+//       cmp     r1,#0x2000                              
+//       blt     end_EXTI4_IRQHandler           
 #ifdef DEBUG_EXTI4_RAM_READ
         vstr     reg_led_on,[r12,ODR]
 #endif
@@ -654,12 +588,11 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
         bne	end_EXTI0_IRQHandler
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
         lsrs	r0,r0,#8                                // PD8-PD15 -> shift to 0
-#ifdef DEBUG_EXTI0_6C
-        ldr     r1,[r12,ODR]
-        orr     r1, r0                                  // bit 0 ukazuje co bylo na D0(predpokladam ze pouzivame out&6c,0 a 1)
-        orr     r1, #2                                  // bit 1 je indikator ze probiha out6c
-        str     r1,[r12,ODR]
+
+#ifdef DEBUG_EXTI0_MEM_MODE
+        str     r0, [r12,ODR]                                     
 #endif
+ 
         ldr     r1, =mem_mode
         strb    r0,[r1]                                 // set mem_mode
         mov     r3, #0b10011010                         // MONITOROM disable map: bit 7 = mode 7, bit 6=mode 6 etc., 1=disabled MONITOR, 0=enabled
@@ -668,8 +601,8 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
         tst     r3, r1                                  // test bit from map for current mem_mode
         ldr	r1,[r2, B_TO_C_OFFSET + MODER] 
         bne     disableMONITOR                          // if is set disable MONITOR ROM
-
-#ifdef DEBUG_EXTI0_MEM_MODE
+        
+#ifdef DEBUG_EXTI0_MEM_MODE_LED
         ite     eq
         vstreq  reg_led_off,[r12,ODR]                   
         vstrne  reg_led_on,[r12,ODR]                    
