@@ -64,7 +64,7 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DDEBUG_EXTI0_START
 #CFLAGS += -DDEBUG_EXTI0_6C
 #CFLAGS += -DDEBUG_EXTI0_END
-CFLAGS += -DDEBUG_EXTI0_MEM_MODE
+#CFLAGS += -DDEBUG_EXTI0_MEM_MODE
 
 # Include files from STM libraries
 CFLAGS += -I$(STM_COMMON)/Utilities/STM32F4-Discovery

@@ -18,7 +18,7 @@ extern volatile uint8_t mem_mode;
 volatile uint8_t pre_mem_mode;
 
 #ifdef ENABLE_SWO
-extern void initialise_monitor_handles(void);   /*rtt*/
+//extern void initialise_monitor_handles(void);   /*rtt*/
 extern volatile uint32_t debug_var1;
 extern volatile uint32_t debug_var2;
 
@@ -29,6 +29,47 @@ int _write(int32_t file, uint8_t *ptr, int32_t len)
         ITM_SendChar(*ptr++);
     }
     return len;
+}
+
+/*!
+ * \brief Sends a character over the SWO channel
+ * \param c Character to be sent
+ * \param portNo SWO channel number, value in the range of 0 to 31
+ */
+void SWO_PrintChar(char c, uint8_t portNo) {
+  volatile int timeout;
+ 
+  /* Check if Trace Control Register (ITM->TCR at 0xE0000E80) is set */
+  if ((ITM->TCR&ITM_TCR_ITMENA_Msk) == 0) { /* check Trace Control Register if ITM trace is enabled*/
+    return; /* not enabled? */
+  }
+  /* Check if the requested channel stimulus port (ITM->TER at 0xE0000E00) is enabled */
+  if ((ITM->TER & (1ul<<portNo))==0) { /* check Trace Enable Register if requested port is enabled */
+    return; /* requested port not enabled? */
+  }
+  
+  timeout = 5000; // arbitrary timeout value
+  while (ITM->PORT[portNo].u32 == 0) {
+    // Wait until STIMx is ready, then send data 
+    timeout--;
+    if (timeout==0) {
+      return; // not able to send 
+    }
+  }
+  //ITM->PORT[0].u16 = 0x08 | (c<<8);
+  
+  ITM->PORT[portNo].u8 = (uint8_t) c;
+}
+
+/*!
+ * \brief Sends a string over SWO to the host
+ * \param s String to send
+ * \param portNumber Port number, 0-31, use 0 for normal debug strings
+ */
+void SWO_PrintString(const char *s, uint8_t portNumber) {
+  while (*s!='\0') {
+    SWO_PrintChar(*s++, portNumber);
+  }
 }
 
 #endif
@@ -424,7 +465,7 @@ int __attribute__((optimize("O0")))  main(void) {
 
         //SD_NVIC_Configuration(); 
 
-#ifdef ENABLE_SWO
+#ifdef ENABLE_SEMIHOSTING
         initialise_monitor_handles();   /*rtt*/
 	printf("Semi hosting on\n");
 #endif
@@ -435,14 +476,17 @@ int __attribute__((optimize("O0")))  main(void) {
         mem_mode = 0;
        
 #ifdef ENABLE_SWO
-	printf("%d\n", mem_mode);
+	//printf("%d\n", mem_mode);
+        SWO_PrintString("hello world with SWO\r\n", 0);
 #endif	
 	while(1) {
                
         #ifdef ENABLE_SWO
                 if ((mem_mode & 0x10) == 0)
                 {
-                        printf("Mem mode is :%d\n", mem_mode);
+                        SWO_PrintString("Mem mode is :\n", 0);
+                        SWO_PrintChar(mem_mode+0x30, 0);
+                        SWO_PrintChar('\n', 0);
                         mem_mode |= 0x10;
                 }
                 /*

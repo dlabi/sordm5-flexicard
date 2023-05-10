@@ -1,4 +1,4 @@
-#define _VER_ 14.4
+#define _VER_ 14.5
 
 #include "main.h"
 
@@ -402,7 +402,7 @@ writable:
         vstr    reg_bit1_high,[r12,ODR]
 #endif
         vmov    r3, reg_high_64k_base                   // begining of RAM 
-	delay 10      // nevim zdali je nutne
+	//delay 3      // nevim zdali je nutne
 
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8                                // PD16-PD8 >> 8
@@ -428,12 +428,15 @@ read_memory:
         vstr    reg_bit0_high,[r12,ODR]
 #endif
 
-//        cmp     r0, #0
-//        beq     mode0_5
-//        cmp     r0, #1
-//        beq     mode1_3_4
-//        b       end_EXTI4_IRQHandler 
-
+        //vyrazeni jump_table systemu, docasne
+        cmp     r0, #0
+        beq     mode0_5
+        cmp     r0, #1
+        beq     mode1_3_4
+        cmp     r0, #2
+        beq     mode2
+        b       end_EXTI4_IRQHandler 
+        //*************************************
         ldr	r3, =jump_table
 	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, doesn't worked for me, possible usage of dsb instruction???
         //dsb
@@ -528,7 +531,7 @@ read:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe                                             // wait for the positive edge of _MREQ
 
-        delay 8         //nevim zdali nutne, testuji nestabilitu
+        delay 3         //nevim zdali nutne, testuji nestabilitu
 
 // _MREQ should have just gone high here
         str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
