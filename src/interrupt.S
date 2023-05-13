@@ -1,4 +1,4 @@
-#define _VER_ 14.5
+#define _VER_ 14.6
 
 #include "main.h"
 
@@ -22,28 +22,25 @@
 
 
 /* REGISTERS */
-#define reg_zero	s0
-#define reg_bit0_high	s1
-#define reg_bit1_high	s2
-#define reg_gpioc_base	s3
-#define reg_debug_var1	s4    //volny pro jine pouziti
-
-#define reg_gpioa_base	s5
-#define reg_high_64k_base	s6
-#define reg_exti_base	s7
-#define reg_moder_dataout	s8
-#define reg_moder_datain	s9
-#define reg_rom_base_2000	s10
-#define reg_led_on	s11
-#define reg_gpiob_base	s12
-#define reg_bit3_high	s13
-#define reg_bit4_high	s14
-#define reg_led_off	s15
+#define reg_zero	        s0
+#define reg_bit0_high	        s1
+#define reg_bit1_high	        s2
+#define reg_bit2_high           s3
+#define reg_bit3_high           s4
+#define reg_bit4_high           s5
+#define reg_gpioa_base          s6
+#define reg_gpiob_base          s7
+#define reg_high_64k_base       s8
+#define reg_rom_base_2000       s9
+#define reg_exti_base           s10
+#define reg_debug_var1	        s11   
+#define reg_moder_dataout	s12
+#define reg_moder_datain	s13
+#define reg_led_on	        s14
+#define reg_led_off	        s15
 
 // NOTE: FPU registers d8 and d9 are used somehow, so you cannot use s16,s17,s18 and s19
-
-#define reg_bit8_high	s22
-#define reg_fake_stack	s30
+// s16-s30 nejsou automaticky pushovany a nemeli byse menit
 
 /* MACROS */
 
@@ -78,8 +75,8 @@
 
 .macro unrolled_exit_EXTI4
 #if defined(DEBUG_EXTI4_END)
-        delay 2
-        mov     r0,#0x00080000                          //clears bits 3
+       // delay 2
+        mov     r0,#0x000F0000                          //clears bits 3-0
         str     r0,[r12,BSRR]
 #endif
         dsb
@@ -272,14 +269,23 @@ init_fpu_regs:
 	mov	r0,#0
 	vmov	reg_zero,r0
 
-	mov	r0,#1
+	mov	r0,#0x01
 	vmov	reg_bit0_high,r0
 
-	mov	r0,#2
+	mov	r0,#0x02
 	vmov	reg_bit1_high,r0
 
-	mov32	r0,GPIOC_BASE
-	vmov	reg_gpioc_base,r0
+        mov	r0,#0x04
+	vmov	reg_bit2_high,r0
+
+        mov	r0,#0x08
+	vmov	reg_bit3_high,r0
+        
+        mov	r0,#0x10
+	vmov	reg_bit4_high,r0
+
+	//mov32	r0,GPIOC_BASE
+	//vmov	reg_gpioc_base,r0
 
 	mov32	r0,debug_var1
 	vmov	reg_debug_var1,r0
@@ -301,15 +307,6 @@ init_fpu_regs:
 
 	mov32	r0,GPIOB_BASE
 	vmov	reg_gpiob_base,r0
-
-        mov	r0,#0x10
-	vmov	reg_bit4_high,r0
-
-	mov	r0,#0x08
-	vmov	reg_bit3_high,r0
-
-	mov	r0,#0x100
-	vmov	reg_bit8_high,r0
 
         mov32	r0,rom_base - 0x2000            //neni pak treba menit adr v r1, a ROM je tak "virtualne" od 2000
 	vmov	reg_rom_base_2000,r0
@@ -350,7 +347,7 @@ EXTI4_IRQHandler:
 #endif
        
 clear_pending_iorq_int:                                 
-	vmov	r3,reg_exti_base		        // s7 = EXTI
+	vmov	r3,reg_exti_base		        
 	vstr	reg_bit4_high,[r3,PR]	                // clear pending flag of our interrupt
 
         vmov	r2,reg_gpiob_base
@@ -398,12 +395,11 @@ mem_map:                                                // mem mode write addres
     .word 0x10000                                       // mode 7 - write disabled
 .align 4                                                                  
 writable:
-#ifdef DEBUG_EXTI4_RAM_WRITE
-        vstr    reg_bit1_high,[r12,ODR]
-#endif
         vmov    r3, reg_high_64k_base                   // begining of RAM 
 	//delay 3      // nevim zdali je nutne
-
+#ifdef DEBUG_EXTI4_RAM_WRITE
+        vstr    reg_bit1_high,[r12,BSRR]
+#endif
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8                                // PD16-PD8 >> 8
 	strb	r0,[r3,r1]                              // write to the RAM
@@ -424,10 +420,11 @@ jump_table:
         .word   mode7                                   // mode 7
 .align 4
 read_memory:
-#ifdef DEBUG_EXTI4_RAM_TEST
+#ifdef DEBUG_EXTI4_MODE_TEST
         vstr    reg_bit0_high,[r12,ODR]
 #endif
 
+#ifdef UNDEFINED
         //vyrazeni jump_table systemu, docasne
         cmp     r0, #0
         beq     mode0_5
@@ -437,6 +434,8 @@ read_memory:
         beq     mode2
         b       end_EXTI4_IRQHandler 
         //*************************************
+#endif
+
         ldr	r3, =jump_table
 	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, doesn't worked for me, possible usage of dsb instruction???
         //dsb
@@ -487,17 +486,14 @@ testMONITOR_ROM:
 
 ram:                                                    // 0000-1fff, 2000-6fff, 8000-ffff
         vmov    r3, reg_high_64k_base                   // read from RAM
-      //docasne
-//
-//       cmp     r1,#0x2000                              
-//       blt     end_EXTI4_IRQHandler           
+         
 #ifdef DEBUG_EXTI4_RAM_READ
-        vstr     reg_led_on,[r12,ODR]
+        vstr     reg_bit0_high,[r12,BSRR]               // sets bit 0 high
 #endif
 
 read:
 #ifdef DEBUG_EXTI4_MRD
-        vstr     reg_bit1_high,[r12,ODR]
+        vstr     reg_bit1_high,[r12,BSRR]               // sets bit 1 high
 #endif
         ldrb    r0,[r3,r1]                              // get the byte from a 16K ROM or RAM
         lsls    r0,r0, #8                               // shift to PD15-PD8
@@ -508,7 +504,7 @@ read:
         str     r1,[r2, B_TO_D_OFFSET + MODER]          // MODER set to outputs
 
 #ifdef DEBUG_EXTI4_DATA_OUT
-        vstr     reg_led_on,[r12,ODR]
+        vstr     reg_bit2_high,[r12,BSRR]                   // sets bit 2 only
 #endif
 
 // Use WFE to wait until _MREQ goes high
@@ -531,14 +527,14 @@ read:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe                                             // wait for the positive edge of _MREQ
 
-        delay 3         //nevim zdali nutne, testuji nestabilitu
+       // delay 3         //nevim zdali nutne, testuji nestabilitu 3 = 42ns
 
 // _MREQ should have just gone high here
         str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
 
 #ifdef DEBUG_EXTI4_TRISTATED
-        mov     r0,#0xc5
-        str     r0,[r12, ODR]
+        mov     r0,#0x00040000                          // clears bit 2
+        str     r0,[r12,BSRR]
 #endif
         clear_EXTI4_RTSR                                // zakaz INT na nabeznou hranu, pouziva r3
 
@@ -568,8 +564,7 @@ EXTI0_IRQHandler:
         vmov	r12,reg_gpioa_base
 #endif
 #ifdef DEBUG_EXTI0_START
-        mov     r0, #4                                  // sets bit 3, keeps other bits untouched , indikuje aktivni int0
-        str     r0,[r12,BSRR]
+        vstr     reg_bit2_high,[r12,BSRR]               // sets bit 2 only, indikuje aktivni int0
 #endif                      
 
 clear_pending_iorq_int0:                                // musi byt jinak nezachytime vsechny edge

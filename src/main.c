@@ -17,8 +17,12 @@ extern volatile uint32_t main_thread_data;
 extern volatile uint8_t mem_mode;
 volatile uint8_t pre_mem_mode;
 
+
+#ifdef ENABLE_SEMIHOSTING
+extern void initialise_monitor_handles(void);   /*rtt*/
+#endif
+
 #ifdef ENABLE_SWO
-//extern void initialise_monitor_handles(void);   /*rtt*/
 extern volatile uint32_t debug_var1;
 extern volatile uint32_t debug_var2;
 
@@ -515,7 +519,7 @@ int __attribute__((optimize("O0")))  main(void) {
                 if (count > 30000000) 
                 {
 #ifdef ENABLE_SWO
-                        printf("STM32 reset.\n");
+                        SWO_PrintString("STM32 reset.\n", 0);
 #endif                        
                         NVIC_SystemReset();
                 }

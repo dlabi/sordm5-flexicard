@@ -50,17 +50,19 @@ CFLAGS += -ffixed-s10 -ffixed-s11 -ffixed-s12 -ffixed-s13 -ffixed-s14 -ffixed-s1
 CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s26 -ffixed-s27 -ffixed-s28 -ffixed-s29 -ffixed-s30 -ffixed-s31
 
 #CFLAGS += -DENABLE_SWO #debug swo, board must be in debugging mode oherwise it won't boot up if enabled, pozor kdyz povoleno r12 se nastavi jinak, proto nefunguji ostatni non-swo debugy!
-#CFLAGS += -DDEBUG_SWO_WRITE
+
+#CFLAGS += -DDEBUG_SWO_WRITE					
 #CFLAGS += -DDEBUG_SWO_MONITOR_READ
 #CFLAGS += -DDEBUG_SWO_ADDRESS
-#CFLAGS += -DDEBUG_EXTI4_START
-#CFLAGS += -DDEBUG_EXTI4
-#CFLAGS += -DDEBUG_EXTI4_MRD
-#CFLAGS += -DDEBUG_EXTI4_ROMREAD
-#CFLAGS += -DDEBUG_EXTI4_DATA_OUT
-#CFLAGS += -DDEBUG_EXTI4_TRISTATED
-#CFLAGS += -DDEBUG_EXTI4_END
-#CFLAGS += -DDEBUG_EXTI4_RAM_WRITE
+#																	debug pins PA   3210
+CFLAGS += -DDEBUG_EXTI4_START				#ISR entered 							1XXX
+#CFLAGS += -DDEBUG_EXTI4_MRD				#actual reading, 						XX1X
+#CFLAGS += -DDEBUG_EXTI4_RAM_READ			#if not active then ROM_READ occurs		XXX1
+#CFLAGS += -DDEBUG_EXTI4_RAM_WRITE			#data taken from bus 					XX1X
+CFLAGS += -DDEBUG_EXTI4_DATA_OUT			#data on the bus  						X1XX
+CFLAGS += -DDEBUG_EXTI4_TRISTATED			#pins set as inputs 					X0XX
+CFLAGS += -DDEBUG_EXTI4_END					#ISR ended  							0000
+
 #CFLAGS += -DDEBUG_EXTI0_START
 #CFLAGS += -DDEBUG_EXTI0_6C
 #CFLAGS += -DDEBUG_EXTI0_END
