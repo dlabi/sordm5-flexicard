@@ -1,4 +1,4 @@
-#define _VER_ 14.6
+#define _VER_ 14.7
 
 #include "main.h"
 
@@ -65,7 +65,7 @@
 .endm
 
 .macro clear_EXTI4_RTSR   //rising edge selection register
-	vstr	reg_zero,[r3,RTSR]
+	vstr	reg_zero,[r3,RTSR] //kdybychom museli jinym interuptem reagovat na nabeznou hranu, tak bychom museli pouzit AND jen na INT4
 .endm
 
 .macro set_EXTI4_RTSR
@@ -183,8 +183,6 @@ rom_base:
         .equ    EXTI_Line4      ,       0x00010
         .equ    EXTI_Line14     ,       0x04000
         .equ    EXTI            ,       0x40013c00
-        .equ    EXTI_IMR        ,       EXTI + 0x00
-        .equ    EXTI_PR         ,       EXTI + 0x14
 
 	.equ	IMR		,	0x00
 	.equ	EMR		,	0x04
@@ -510,18 +508,18 @@ read:
 // Use WFE to wait until _MREQ goes high
         vmov	r3,reg_exti_base
 
-    // disable neni potreba je automaticky, ale re-enable ji potreba je   
-    //    ldr     r0,[r3,IMR]             // EXTI_IMR
-     //   and     r0,#0xffffffef          // turn off  PC4 int
-     //   str     r0,[r3,IMR]             // EXTI_IMR
-        vstr    reg_bit4_high,[r3,PR]   // EXTI_PR  - clear the current PC4 interrupt
-
+        //zakaz interupt protoze jinak nam bude reagovat i INT na nabeznou hranu a my chceme jen event
+        ldr     r0,[r3,IMR]             // EXTI_IMR
+        and     r0,#0xffffffef          // turn off  PC4 int
+        str     r0,[r3,IMR]             // EXTI_IMR
+        
+        vstr    reg_bit4_high,[r3,PR]                   // EXTI_PR  - clear the current PC4 interrupt
         set_EXTI4_RTSR                                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
         vstr    reg_bit4_high,[r3,EMR]                  // EXTI_EMR - wait for an event rather than an interrupt on PC4
        
         vmov	r1,reg_moder_datain
 
-	dsb                                             // not entirely sure if this is required
+	dsb                                             
         sev                                             // set the event register
         wfe                                             // clear the event register
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
@@ -539,17 +537,19 @@ read:
         clear_EXTI4_RTSR                                // zakaz INT na nabeznou hranu, pouziva r3
 
 end_EXTI4_IRQHandler:           
-       
+
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]                             // EXTI_IMR
-        orr     r0,#0x0010                              // reenable PC4 interrupts
+     //   orr     r0,#0x0010                              // reenable PC4 interrupts
 
         mov     r1,#EXTI_Line4
-        str     r1,[r3,PR]                              // EXTI_PR 
-        str     r0,[r3,IMR]                             // EXTI_IMR	// I think you need to reenable after the clear
+        orr     r0,r1                                   // reenable PC4 interrupts
+        str     r1,[r3,PR]                              // clear pending EXTI_PR 
+        str     r0,[r3,IMR]                             // EXTI_IMR	
 
 unrolled_exit_EXTI4
+
 
 //******************************************************************************************************************************************
 
