@@ -1,4 +1,4 @@
-#define _VER_ 14.7
+#define _VER_ 14.8
 
 #include "main.h"
 
@@ -359,6 +359,10 @@ test_internal_RAM:
         cmp     r1, #0x7000
         blt     read_write
         cmp     r1, #0x8000
+#ifdef DEBUG_EXTI4_INTERNAL_RAM
+        IT LT
+        vstrlt    reg_bit0_high,[r12,BSRR]
+#endif        
         blt     end_EXTI4_IRQHandler                    // internal RAM 7000-7fff get out 
 
 read_write:
@@ -394,10 +398,13 @@ mem_map:                                                // mem mode write addres
 .align 4                                                                  
 writable:
         vmov    r3, reg_high_64k_base                   // begining of RAM 
-	//delay 3      // nevim zdali je nutne
+	delay 20      
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,BSRR]
 #endif
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
+        tst     r0,#_MWR_MASK                           // check MWR, if log. 0 then read databus, otherwise refreshing DRAM goin on->exit 
+        bne     end_EXTI4_IRQHandler
 	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8                                // PD16-PD8 >> 8
 	strb	r0,[r3,r1]                              // write to the RAM
