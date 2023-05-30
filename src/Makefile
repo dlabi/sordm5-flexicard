@@ -55,17 +55,16 @@ CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s2
 #CFLAGS += -DDEBUG_SWO_MONITOR_READ
 #CFLAGS += -DDEBUG_SWO_ADDRESS
 #																	debug pins PA   3210
-CFLAGS += -DDEBUG_EXTI4_START				#ISR entered 							1XXX
+#CFLAGS += -DDEBUG_EXTI4_START				#ISR entered 							1XXX
 #CFLAGS += -DDEBUG_EXTI4_MRD				#actual reading, 						XX1X
 #CFLAGS += -DDEBUG_EXTI4_RAM_READ			#if not active then ROM_READ occurs		XXX1
-CFLAGS += -DDEBUG_EXTI4_INTERNAL_RAM		#access to the internal ram 7000-7fff   XXX1
-CFLAGS += -DDEBUG_EXTI4_RAM_WRITE			#data taken from bus 					XX1X
-CFLAGS += -DDEBUG_EXTI4_DATA_OUT			#data on the bus  						X1XX
-CFLAGS += -DDEBUG_EXTI4_TRISTATED			#pins set as inputs 					X0XX
-CFLAGS += -DDEBUG_EXTI4_END					#ISR ended  							0000
+#CFLAGS += -DDEBUG_EXTI4_INTERNAL_RAM		#access to the internal ram 7000-7fff   XXX1
+#CFLAGS += -DDEBUG_EXTI4_RAM_WRITE			#data taken from bus 					XX1X
+#CFLAGS += -DDEBUG_EXTI4_DATA_OUT			#data on the bus  						X1XX
+#CFLAGS += -DDEBUG_EXTI4_TRISTATED			#pins set as inputs 					X0XX
+#CFLAGS += -DDEBUG_EXTI4_END				#ISR ended  							0000
 
 #CFLAGS += -DDEBUG_EXTI0_START
-#CFLAGS += -DDEBUG_EXTI0_6C
 #CFLAGS += -DDEBUG_EXTI0_END
 #CFLAGS += -DDEBUG_EXTI0_MEM_MODE
 

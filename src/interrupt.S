@@ -1,4 +1,4 @@
-#define _VER_ 14.8
+#define _VER_ 14.9
 
 #include "main.h"
 
@@ -207,8 +207,8 @@ rom_base:
 
 
 .section .data
-high_64k_base:
-.incbin "../roms/msx_dump.rom"
+//high_64k_base:
+//.incbin "../roms/msx_dump.rom"
 // main_thread_data must immediately follow main_thread_command
 main_thread_command:
 	.word	0x00000000			// command word
@@ -229,7 +229,7 @@ low_64k_base:
        //.lcomm low_64k_base,0x10000               
 
 .section .bss
-   //     .lcomm high_64k_base,0x10000                
+        .lcomm high_64k_base,0x10000                
 
   //      .lcomm  EXTI4_tempvar,4
 
@@ -398,7 +398,7 @@ mem_map:                                                // mem mode write addres
 .align 4                                                                  
 writable:
         vmov    r3, reg_high_64k_base                   // begining of RAM 
-	delay 20      
+	delay   18                                        //wait to safely detect if MWR is happening, 15 chodi ale semtam na hrane s MWR 0-42ns, 20: 42-83ns mezi MWR a RAM_WRITE a to chodi
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,BSRR]
 #endif
@@ -427,18 +427,6 @@ jump_table:
 read_memory:
 #ifdef DEBUG_EXTI4_MODE_TEST
         vstr    reg_bit0_high,[r12,ODR]
-#endif
-
-#ifdef UNDEFINED
-        //vyrazeni jump_table systemu, docasne
-        cmp     r0, #0
-        beq     mode0_5
-        cmp     r0, #1
-        beq     mode1_3_4
-        cmp     r0, #2
-        beq     mode2
-        b       end_EXTI4_IRQHandler 
-        //*************************************
 #endif
 
         ldr	r3, =jump_table
@@ -481,7 +469,6 @@ rom:                                                    // cokoliv mimo rom rang
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
 #endif
-       // b       end_EXTI4_IRQHandler  //docasne
                                                         // address <2000, MONITOR ROM must be disabled or we have hazard on the bus
 testMONITOR_ROM:
         ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // read PC0
@@ -548,8 +535,6 @@ end_EXTI4_IRQHandler:
         vmov	r3,reg_exti_base
         ldr     r3,=EXTI
         ldr     r0,[r3,IMR]                             // EXTI_IMR
-     //   orr     r0,#0x0010                              // reenable PC4 interrupts
-
         mov     r1,#EXTI_Line4
         orr     r0,r1                                   // reenable PC4 interrupts
         str     r1,[r3,PR]                              // clear pending EXTI_PR 
