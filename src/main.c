@@ -3,11 +3,28 @@
 #include "main.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4xx.h"
+#include "util.h"
 
+//#include "defines.h"
+#include "stm32f4_discovery_sdio_sd.h"
+#include "ff.h"
+#include "diskio.h"
+
+
+// FATFS stuff
+FATFS fs32;
+
+#if _USE_LFN
+    static char lfn[_MAX_LFN + 1];
+        fno.lfname = lfn;
+            fno.lfsize = sizeof lfn;
+#endif
 
 GPIO_InitTypeDef  GPIO_InitStructure;
 
 extern volatile uint8_t *rom_base;
+extern volatile uint8_t *high_64k_base;
+
 extern void init_fpu_regs(void);
 
 
@@ -102,7 +119,7 @@ void enable_fpu_and_disable_lazy_stacking() {
     );
 }
 
-
+/*
 void delay_ms(const uint16_t ms)
 {
    uint32_t i = ms * 27778;
@@ -110,6 +127,8 @@ void delay_ms(const uint16_t ms)
       __asm volatile ("nop");
    }
 }
+
+*/
 
 void blink_pa6_pa7(int n) {
         int i=0;
@@ -211,10 +230,27 @@ void SD_NVIC_Configuration(void)
 
         NVIC_InitStructure.NVIC_IRQChannel = SDIO_IRQn;
         //NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-        NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;    // This must be a lower priority (ie. higher number) than the _MREQ and _IORQ interrupts
+        NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;    // This must be a lower priority (ie. higher number) than the _MREQ and _IORQ interrupts
         NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
         NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
         NVIC_Init(&NVIC_InitStructure);
+
+        // DMA2 STREAMx Interrupt ENABLE
+	NVIC_InitStructure.NVIC_IRQChannel = SD_SDIO_DMA_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 4;
+	NVIC_Init(&NVIC_InitStructure);
+
+}
+
+void SDIO_IRQHandler(void)
+{
+	/* Process All SDIO Interrupt Sources */
+	SD_ProcessIRQSrc();
+}
+
+void SD_SDIO_DMA_IRQHANDLER(void)
+{
+	SD_ProcessDMAIRQ();
 }
 
 // EXTI0_IRQn 	EXTI0_IRQHandler
@@ -432,10 +468,24 @@ void EXTI0_IRQHandler(void) {
 // probably dont need to turn the optimiser off, but it kept on annoying me at the time
 int __attribute__((optimize("O0")))  main(void) {
 
+        FRESULT res;
+        TCHAR full_directory[128];
+
+        TCHAR root_directory[15];
+        DIR dir;
+        static FILINFO fno;
+        int next_button_debounce;
+	int first_time;
+	uint32_t button_state;
+	int32_t	file_counter;
 
         // You have to disable lazy stacking BEFORE initialising the scratch fpu registers
 	enable_fpu_and_disable_lazy_stacking();
 	init_fpu_regs();
+
+        register uint32_t main_thread_command_reg asm("r10") __attribute__((unused)) = 0;
+	main_thread_data = 0;
+
 
 	rcc_set_frequency(SYSCLK_240_MHZ);
 	  // switch on compensation cell
@@ -467,7 +517,9 @@ int __attribute__((optimize("O0")))  main(void) {
 	config_PB0_int();
 	config_PC4_int();
 
-        //SD_NVIC_Configuration(); 
+        mem_mode = 0;
+
+        SD_NVIC_Configuration(); 
 
 #ifdef ENABLE_SEMIHOSTING
         initialise_monitor_handles();   /*rtt*/
@@ -477,7 +529,29 @@ int __attribute__((optimize("O0")))  main(void) {
 	//__enable_irq();
         blink_pa6_pa7(2);
 
-        mem_mode = 0;
+        memset(&fs32, 0, sizeof(FATFS));
+        res = f_mount(&fs32, "",0);
+        if (res != FR_OK) {
+                blink_debug_led(250);
+        }
+
+        strcpy(root_directory, "sordm5");
+
+        res = f_opendir(&dir, root_directory);
+        if (res != FR_OK) {
+               blink_debug_led(100);
+        }
+
+        first_time=FALSE;
+	next_button_debounce=0;
+	file_counter=-1;
+
+	// attempt to load the menu ROM from the root of the SD card
+	res = load_rom("POOYAN.ROM",(unsigned char *) &high_64k_base+0x8000,0x2000,FALSE);
+        if (res != FR_OK) {
+               blink_debug_led(500);
+        }
+
        
 #ifdef ENABLE_SWO
 	//printf("%d\n", mem_mode);

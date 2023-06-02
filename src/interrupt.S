@@ -1,4 +1,4 @@
-#define _VER_ 14.9
+#define _VER_ 15.0
 
 #include "main.h"
 
@@ -233,19 +233,19 @@ low_64k_base:
 
   //      .lcomm  EXTI4_tempvar,4
 
+//* signs used in sw
+//*PA0-PA3 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
-//PA0-PA2 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
-
-//PB0 = IOWR
+//*PB0 = IOWR
 //PB3 - RFSH            nutno zrusit kvuli swo debug
 //PB5 - WAIT
 //PB6 - EXINT
 //PB7 - EXCLK
 //PB8 - EXIOA           &60 - &6f
 //PB9 - EXIOB           &70 - &7F
-//PB10 - RST
-//PB11 - MRD            -RD & -MREQ
-//PB12 - MWR            -WR & MREQ
+//*PB10 - RST
+//*PB11 - MRD            -RD & -MREQ
+//*PB12 - MWR            -WR & MREQ
 //PB13 - IORD           -RD & -IORQ
 //PB14 - IOWR           -WR & -IORQ  replaced by PB0
 //PB15 - ROMDS
@@ -254,9 +254,15 @@ low_64k_base:
 //PC1 - ROM1	aktivni pri	&2000 - &3FFF
 //PC2 - ROM2	aktivni pri 	&4000 - &5FFF	
 //PC3 - EXM    	aktivni pri     &6000 - &6FFF
-//PC4 - MRQ
+//*PC4 - MRQ
 //PC13 - CLK
 
+//As mentioned, most STM32F4 boards with an SD card adapter are wired the same way. The important pins are:
+
+//*PC11 -  /CS
+//*PD2 -  MOSI
+//*PC12 -  SCK 
+//*PC8  - MISO
 
 .section .text
 

@@ -3,11 +3,15 @@
 
 #
 #
-SRCS=main.c system_stm32f4xx.c 
+SRCS=main.c system_stm32f4xx.c util.c
 
 # Library modules
 #SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_exti.c stm32f4xx_pwr.c stm32f4xx_adc.c
 SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_sdio.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_pwr.c 
+
+
+# Add in stuff for SD access
+SRCS += diskio.c  ff.c ffunicode.c stm32f4_discovery.c  stm32f4_discovery_sdio_sd.c system_stm32f4xx.c misc_handlers.c stm32f4xx_sdio.c stm32f4xx_dma.c
 
 #SRCS += stm32f4xx_tim.c 
 #SRCS += stm32f4_discovery.c
@@ -33,8 +37,10 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
 CFLAGS += --specs=nosys.specs
+
 #used for SWO/SWV too, otherwise not stable on printfs.
-CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+#CFLAGS += -specs=nano.specs -specs=rdimon.specs -lc -lrdimon
+
 ## Even though we specify these registers in main.c as global, still need to specify here to stop FATFS and anything else using though (though we luck out with any other libs linked in)
 CFLAGS += -ffixed-s0
 CFLAGS += -ffixed-s1
