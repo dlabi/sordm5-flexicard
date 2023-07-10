@@ -1,4 +1,4 @@
-#define _VER_ 15.0
+#define _VER_ 15.1
 
 #include "main.h"
 
@@ -16,6 +16,7 @@
 	.global high_64k_base
 	.global main_thread_command
 	.global main_thread_data
+        .global menu_ctrl_file_count
         .global mem_mode
         .global debug_var1
         .global debug_var2
@@ -84,12 +85,8 @@
 .endm
 
 
-
 .section .rodata
 // Can put up to four 16K roms here which will get mapped to rom 12, 13, 14 and 15
-rom_base:
-// be careful if you add roms and later delete them. The old ones might be still in the STM32 flash
-.incbin "../roms/basic-f.rom"
 
         .equ PERIPH_BASE     ,   0x40000000                                                                
         .equ PERIPH_BASE_APB1,   (PERIPH_BASE + 0x00000)
@@ -207,36 +204,42 @@ rom_base:
 
 
 .section .data
+
 //high_64k_base:
 //.incbin "../roms/msx_dump.rom"
 // main_thread_data must immediately follow main_thread_command
 main_thread_command:
-	.word	0x00000000			// command word
+	.byte	0x00			// command byte
 main_thread_data:
-	.word	0x00000000			// command arg
+	.byte	0x00			// command arg
+menu_ctrl_file_count:
+        .word   0x00000000
 mem_mode:
-        .byte   0x00                            // memory mode
+        .byte   0x00                    // memory mode
 
 debug_var1:
 	.word	0x00000000
-debug_var2:
-	.word	0x00000000        
+//debug_var2:
+//	.word	0x00000000        
+
+rom_base:
+// be careful if you add roms and later delete them. The old ones might be still in the STM32 flash
+.incbin "../roms/basic-f.rom"
 
 .section ccmram
 low_64k_base:
+        //used as buffer for file list from SD card
 	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
-	// is defined in stm32_flash.ld
        //.lcomm low_64k_base,0x10000               
 
 .section .bss
         .lcomm high_64k_base,0x10000                
 
-  //      .lcomm  EXTI4_tempvar,4
-
 //* signs used in sw
 //*PA0-PA3 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
 //*PB0 = IOWR
+//*PB1 = IORD
 //PB3 - RFSH            nutno zrusit kvuli swo debug
 //PB5 - WAIT
 //PB6 - EXINT
@@ -246,11 +249,11 @@ low_64k_base:
 //*PB10 - RST
 //*PB11 - MRD            -RD & -MREQ
 //*PB12 - MWR            -WR & MREQ
-//PB13 - IORD           -RD & -IORQ
+//PB13 - IORD           -RD & -IORQ replaced by PB1
 //PB14 - IOWR           -WR & -IORQ  replaced by PB0
 //PB15 - ROMDS
 
-//PC0 - ROM0	aktivni pri	&0000 - &1FFF, pouzito pro odpojeni MONITOR ROM nastavenim vystupu na high. Musi byt upraveny Sord
+//*PC0 - ROM0	aktivni pri	&0000 - &1FFF, pouzito pro odpojeni MONITOR ROM nastavenim vystupu na high. Musi byt upraveny Sord
 //PC1 - ROM1	aktivni pri	&2000 - &3FFF
 //PC2 - ROM2	aktivni pri 	&4000 - &5FFF	
 //PC3 - EXM    	aktivni pri     &6000 - &6FFF
@@ -551,6 +554,8 @@ unrolled_exit_EXTI4
 
 //******************************************************************************************************************************************
 
+#ifdef UNDEFINED
+
 // _IORW interrupt -ve edge
 .type EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
@@ -635,3 +640,5 @@ end_EXTI0_IRQHandler:
         //cpsie	i                                       // enable interrupts
         dsb
         bx      lr
+
+#endif

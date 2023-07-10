@@ -18,6 +18,25 @@ void delay_ms(const uint16_t ms)
    }
 }
 
+void blink_pa6_pa7(int n) {
+        int i=0;
+        while(n) {
+                GPIOA->ODR = 0x0040+(i++ % 3)+1;
+                delay_ms(200);
+                GPIOA->ODR = 0x0080+(i++ % 3)+1; 
+                delay_ms(200);
+                n -= 1;
+        }
+        GPIOA->ODR = 0x00c0;
+}
+
+void reset_sord(int delay) {
+		GPIOB->BSRRH = GPIO_Pin_10;                // ground PB10 -> reset
+		GPIOB->MODER |= GPIO_MODER_MODER10_0;      // PB10 - as output
+		delay_ms(delay);
+		GPIOB->MODER &= ~(GPIO_MODER_MODER10);     // PB10 - as input     
+}
+
 void blink_debug_led(int delay) {
         while(1) {
                 GPIOA->ODR |= GPIO_DEBUG_LED;
@@ -193,28 +212,18 @@ FRESULT load_rom(char *fname, unsigned char* buffer, uint32_t max_size, uint32_t
 	return res;
 }
 
-// This just lists the files in a directory one by one
-// There are two sets of outputs; an array of 16 bit offsets, and the strings themselves.
-//    index_buffer is an array of 16 bit offsets into the string 'buffer' to say where each string starts
-//                 So index_buffer[0] is most likely 0x900 for where the first string starts
-//                    index_buffer[1] is the offset into the buffer where the 2nd string starts
-//                    The last entry in index_buffer to signify the end is always 0
-//    max_files determines the max number of entries in index_buffer. It also determines that the strings buffer will
-//              start immediately after the array for index_buffer
-//    base_offset is added on to each 16 bit offset so that the TI can just pull an offset and immediately used it
-//              with the menu address registers
-// return the number of files read
-uint32_t load_directory(char *dirname, uint16_t *index_buffer, uint32_t max_files, uint32_t base_offset) {
+
+uint32_t load_directory(char *dirname, uint8_t *index_buffer, uint32_t max_files) {
 	FRESULT res;
         DIR dir;
         static FILINFO fno;
-	uint32_t file_index,blanks;
-	int i,j,offset;
-	unsigned char *buffer;
+	uint32_t file_index;
+	int i;
+	//unsigned char *buffer;
 
 	// make the string buffer start straight after the array
-	buffer = (unsigned char *) &index_buffer[max_files];
-
+	//buffer = (unsigned char *) &index_buffer[max_files];
+	memset(index_buffer, 0, 128 * max_files);
 	memset(&dir, 0, sizeof(DIR));
         res = f_opendir(&dir, (TCHAR *) dirname);
         if (res != FR_OK) {
@@ -222,34 +231,38 @@ uint32_t load_directory(char *dirname, uint16_t *index_buffer, uint32_t max_file
         }
 
 	file_index=0;
-	offset=base_offset + (max_files*2); // each offset is 2 bytes, so the string buffer starts after the laste entry
-	i=0;
+	
 	while (file_index<max_files) {
-		// write a 0 into the index just incase we hit the end
-		index_buffer[file_index]=0;
-
+		
 		res = f_readdir(&dir, &fno);
 		if (res != FR_OK || fno.fname[0] == 0) {
 			break;
 		}
-		index_buffer[file_index]=i+offset;
-		j=0;
+		i=0;
 		do {
-			buffer[i] = fno.fname[j];
-			if (j>126) {
-				buffer[i]=0;
+			index_buffer[file_index * 128 + i] = fno.fname[i];
+			if (i>126) {
+				index_buffer[file_index * 128 + i]=0;
 				break;
 			}
-			i++;
-		} while (fno.fname[j++]!=0);
+		} while (fno.fname[i++]!=0);
 		file_index++;
-	}
-	// Put lots of 0x00's in for the remaining entries (should roughly fill out the 16KB chunk reserved for filenames)
-	for (blanks = file_index; blanks <max_files; blanks++) {
-		index_buffer[blanks]=0;
 	}
 
 	res = f_closedir(&dir);
 	return file_index;
 }
 
+uint8_t get_filename(uint8_t *index_buffer, char *buffer, int file_num ) {
+	
+	int i=0;
+	do {
+			buffer[i]=index_buffer[file_num * 128 + i];
+		} while (buffer[i++]!=0);	
+	
+	return strlen((char *)buffer);
+}
+
+void send_files(uint32_t file_number, uint16_t *index_buffer ) {
+	
+}

@@ -10,6 +10,37 @@
 #include "ff.h"
 #include "diskio.h"
 
+#define	DATA_OUT_MODE	0x55550020
+#define	DATA_IN_MODE	0x00000020
+
+#define MENU_DIRCACHE_OFFSET		0x1000		// You need enough room to load a lot of files less than 0x8000 where the emulated 32K ram starts
+#define MENU_LISTING_OFFSETS		0x100
+#define MENU_MAX_DIRECTORY_ITEMS	500 //1024 jinak musim zmensit max delku jmena souboru ze 128 na 64
+#define MENU_LISTING_STRINGS		(MENU_LISTING_OFFSETS+(2*MENU_MAX_DIRECTORY_ITEMS))
+
+#define MENU_LISTING_BASE		0x100		// So the TI needs to write this to the address register to access the table of 16bit offsets
+#define MENU_LOAD_FILE_BASE		0x0 		// The TI needs to write this to the address register before writing the filename you want to load
+#define COMMAND_ACTIVE                  0x80
+
+//
+// ---------------
+
+#define CCMRAM_BASE	0x10000000
+
+// FLEXI CARD PORTS
+#define DATA_PORT       0x80
+#define CMD_PORT        0x81
+
+// FLEXI CARD COMMANDS
+#define BREAK           0
+#define GET_COUNT       1
+#define SET_INDEX       2
+#define GET_INDEX       3
+#define NEXT_FILE       4
+#define PREV_FILE       5
+#define FIRST_FILE      6
+#define GET_FILENAME    7
+#define LOAD_ROM        8
 
 // FATFS stuff
 FATFS fs32;
@@ -24,16 +55,19 @@ GPIO_InitTypeDef  GPIO_InitStructure;
 
 extern volatile uint8_t *rom_base;
 extern volatile uint8_t *high_64k_base;
+extern volatile uint8_t *low_64k_base;
 
 extern void init_fpu_regs(void);
 
 
 // Must be volatile to prevent optimiser doing stuff
-extern volatile uint32_t main_thread_command;
-extern volatile uint32_t main_thread_data;
-extern volatile uint8_t mem_mode;
-volatile uint8_t pre_mem_mode;
+extern volatile BYTE main_thread_command;
+extern volatile BYTE main_thread_data;
+extern volatile BYTE mem_mode;
+extern volatile uint32_t menu_ctrl_file_count;
 
+int counter;
+uint16_t file_num;
 
 #ifdef ENABLE_SEMIHOSTING
 extern void initialise_monitor_handles(void);   /*rtt*/
@@ -117,29 +151,6 @@ void enable_fpu_and_disable_lazy_stacking() {
     "  isb"                          /* reset pipeline  */
     :::"r0","r1"
     );
-}
-
-/*
-void delay_ms(const uint16_t ms)
-{
-   uint32_t i = ms * 27778;
-   while (i-- > 0) {
-      __asm volatile ("nop");
-   }
-}
-
-*/
-
-void blink_pa6_pa7(int n) {
-        int i=0;
-        while(n) {
-                GPIOA->ODR = 0x0040+(i++ % 3)+1;
-                delay_ms(500);
-                GPIOA->ODR = 0x0080+(i++ % 3)+1; 
-                delay_ms(500);
-                n -= 1;
-        }
-        GPIOA->ODR = 0x00c0;
 }
 
 enum sysclk_freq {
@@ -255,7 +266,7 @@ void SD_SDIO_DMA_IRQHANDLER(void)
 
 // EXTI0_IRQn 	EXTI0_IRQHandler
 // https://stm32f4-discovery.net/2014/08/stm32f4-external-interrupts-tutorial/
-// _IORQ interrupt
+// _IOWR interrupt
 void config_PB0_int(void) {
         EXTI_InitTypeDef EXTI_InitStruct;
         NVIC_InitTypeDef NVIC_InitStruct;
@@ -290,6 +301,45 @@ void config_PB0_int(void) {
         /* Add to NVIC */
         NVIC_Init(&NVIC_InitStruct);
 }
+
+// EXTI1_IRQn 	EXTI1_IRQHandler
+// https://stm32f4-discovery.net/2014/08/stm32f4-external-interrupts-tutorial/
+// _IORD interrupt
+void config_PB1_int(void) {
+        EXTI_InitTypeDef EXTI_InitStruct;
+        NVIC_InitTypeDef NVIC_InitStruct;
+
+        /* Enable clock for SYSCFG */
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+
+        /* Tell system that you will use PB1 for EXTI_Line1 */
+        SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOB, EXTI_PinSource1);
+
+        /* PB1 is connected to EXTI_Line1 */
+        EXTI_InitStruct.EXTI_Line = EXTI_Line1;
+        /* Enable interrupt */
+        EXTI_InitStruct.EXTI_LineCmd = ENABLE;
+        /* Interrupt mode */
+        EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
+        /* Triggers on rising and falling edge */
+        //EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+        EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
+        /* Add to EXTI */
+        EXTI_Init(&EXTI_InitStruct);
+
+        /* Add IRQ vector to NVIC */
+        /* PB1 is connected to EXTI_Line1, which has EXTI1_IRQn vector */
+        NVIC_InitStruct.NVIC_IRQChannel = EXTI1_IRQn;
+        /* Set priority */
+        NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x01;
+        /* Set sub priority */
+        NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0x00;
+        /* Enable interrupt */
+        NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+        /* Add to NVIC */
+        NVIC_Init(&NVIC_InitStruct);
+}
+
 
 //MREQ INT
 void config_PC4_int(void) {
@@ -442,42 +492,151 @@ void config_backup_sram(void) {
         PWR_BackupRegulatorCmd(ENABLE);
 }
 
-/*
+//IOWR
 void EXTI0_IRQHandler(void) {
-  __disable_irq();
+  
+  uint8_t data;
+  
+  //__disable_irq();
   // Make sure that interrupt flag is set 
   if ((EXTI->PR & EXTI_Line0) != 0) {
-        GPIOA->ODR |= 0x04;
         int address = GPIOE->IDR & 0xff;
-        if (address == 0x6c) {
-                
-                mem_mode = ( GPIOD->IDR >> 8 );
-                mem_mode &= GPIO_Pin_0;
-                GPIOA->ODR = GPIOA->ODR | 0x02 | mem_mode;
+        if (address == 0x30) {        
+                mem_mode = ( GPIOD->IDR >> 8 ) & 0x0f;
+
+                switch (mem_mode){
+
+                case 1:
+                case 3:
+                case 4:
+                case 7:
+                        GPIOC->BSRRL = GPIO_Pin_0;                // set PC0 to high, switch MONITOR ROM off 
+                        GPIOC->MODER |= GPIO_MODER_MODER0_0;      // PC0 - as output
+                        break;
+                default:
+                        GPIOC->MODER &= ~( GPIO_MODER_MODER0 );   // PC0 - as input, switch MONITOR ROM on 
+                        break;
+                }
+        }
+        else 
+        if ((address & 0xfe) == 0x80) {
+                data = GPIOD->IDR >> 8;
+                switch (address) {
+                case DATA_PORT: 
+                           switch(main_thread_command & 0x7f){
+                                case SET_INDEX:
+                                case LOAD_ROM:
+                                        counter--;
+                                        break;
+                           }
+                           main_thread_data = data;
+                           break;
+                case CMD_PORT: 
+                           switch(data){
+                                case FIRST_FILE:
+                                        file_num = 0;
+                                        data = 0;               //main_thread_command = 0
+                                        main_thread_data = file_num;
+                                        break;
+                                case NEXT_FILE: 
+                                        file_num++;     //TODO: make loop 
+                                        data = 0;               //main_thread_command = 0
+                                        main_thread_data = file_num;
+                                        break;
+                                case PREV_FILE: file_num--;
+                                        data = 0;
+                                        main_thread_data = file_num;
+                                        break;
+                           }
+                           main_thread_command = data;
+                           break;
+                }                             
+        }
+         
+    // Clear interrupt flag 
+    EXTI->PR = EXTI_Line0;
+  }
+  
+  //__enable_irq();
+}
+
+//IORD
+void EXTI1_IRQHandler(void) {
+  
+  BYTE data;
+  int cmd_active;
+
+  //__disable_irq();
+  // Make sure that interrupt flag is set 
+  if ((EXTI->PR & EXTI_Line1) != 0) {
+        int address = GPIOE->IDR & 0xff;
+        if ((address & 0xfe) == 0x80) {                                 //je to port 80 nebo 81?
+                cmd_active = main_thread_command >> 7;       
+                switch(address){
+                        case (DATA_PORT):                                    //cteme datovy port
+                                switch (main_thread_command & 0x7f){    //zrus status bit
+                                    case GET_COUNT:
+                                                if (cmd_active) {           //prenos neskoncil                                             
+                                                        data = main_thread_data;
+                                                        counter--;
+                                                }
+                                                else {
+                                                        data = 0xff;            //sem by se nemel dostat        
+                                                }                
+                                                break;
+
+                                    case GET_FILENAME:
+                                                if (cmd_active) {           //prenos neskoncil                                             
+                                                        data = main_thread_data;
+                                                        counter++;
+                                                        #ifdef ENABLE_SWO
+                                                        SWO_PrintString("Get_filename\r\n", 0);
+                                                        #endif
+                                                }
+                                                else {
+                                                        data = 0xff;            //sem by se nemel dostat        
+                                                }                
+                                                break;
+                                    default:    data = main_thread_data;
+
+                                }
+                                
+                break;
+                case (CMD_PORT): data = main_thread_command;        //STM32 cmd port
+                break;
+
+        }       
+              GPIOD->ODR = data << 8;
+              GPIOD->MODER = DATA_OUT_MODE;
+
+              while (!(GPIOB->IDR & GPIO_Pin_1) );      // wait for rising edge of IORD and ...
+              GPIOD->MODER = DATA_IN_MODE;              // ... tristate bus
+      
         }
 
     // Clear interrupt flag 
-    EXTI->PR = EXTI_Line0;
-    GPIOA->ODR = GPIOA->ODR ^ 0x6;
+    EXTI->PR = EXTI_Line1;
 
   }
-  __enable_irq();
+  //__enable_irq();
 }
-*/
+
+
 
 // probably dont need to turn the optimiser off, but it kept on annoying me at the time
 int __attribute__((optimize("O0")))  main(void) {
 
         FRESULT res;
-        TCHAR full_directory[128];
-
+        TCHAR sord_folder[] = "sordm5/";
+        TCHAR full_filename[128];
         TCHAR root_directory[15];
         DIR dir;
-        static FILINFO fno;
-        int next_button_debounce;
-	int first_time;
-	uint32_t button_state;
-	int32_t	file_counter;
+        //static FILINFO fno;
+        //int next_button_debounce;
+	//int first_time;
+	//int32_t file_counter;
+        int cmd_active;
+	//uint32_t button_state;
 
         // You have to disable lazy stacking BEFORE initialising the scratch fpu registers
 	enable_fpu_and_disable_lazy_stacking();
@@ -514,8 +673,9 @@ int __attribute__((optimize("O0")))  main(void) {
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); 
 
 	SysTick->CTRL  = 0;
-	config_PB0_int();
-	config_PC4_int();
+	config_PB0_int(); //IOWR
+        config_PB1_int(); //IORD
+	config_PC4_int(); //MREQ
 
         mem_mode = 0;
 
@@ -536,29 +696,102 @@ int __attribute__((optimize("O0")))  main(void) {
         }
 
         strcpy(root_directory, "sordm5");
-
         res = f_opendir(&dir, root_directory);
-        if (res != FR_OK) {
-               blink_debug_led(100);
+        if (res == FR_OK) {
+               
+                //first_time=FALSE;
+                //next_button_debounce=0;
+                //file_counter=-1;
+
+                // attempt to load the menu ROM from the root of the SD card
+                res = load_rom("menu.rom",(unsigned char *) &rom_base,0x2000,FALSE);
+                if (res != FR_OK) {
+                //blink_debug_led(500);
+                }
+
+                menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS ); //(uint16_t *)(CCMRAM_BASE)
         }
 
-        first_time=FALSE;
-	next_button_debounce=0;
-	file_counter=-1;
 
-	// attempt to load the menu ROM from the root of the SD card
-	res = load_rom("POOYAN.ROM",(unsigned char *) &high_64k_base+0x8000,0x2000,FALSE);
-        if (res != FR_OK) {
-               blink_debug_led(500);
-        }
+char buff[128];
+int length;
 
-       
 #ifdef ENABLE_SWO
 	//printf("%d\n", mem_mode);
         SWO_PrintString("hello world with SWO\r\n", 0);
 #endif	
 	while(1) {
-               
+                        cmd_active = main_thread_command >> 7;   
+                        switch ( main_thread_command & 0x7f) {     
+                                //returns num of files 
+                                case GET_COUNT: if (!cmd_active) {
+                                                counter = 1; 
+                                                main_thread_command |= 0x80;             //nastav aktivni status
+                                        } 
+                                        else {
+                                                if (counter < 0) main_thread_command = 0; //we sent both bytes
+                                                else main_thread_data = (uint8_t)(menu_ctrl_file_count >> (8 * counter ));                   
+                                        }
+                                        break;
+                                //set file index
+                                case SET_INDEX: if (!cmd_active) {
+                                                counter = 2; 
+                                                file_num = 0;
+                                                main_thread_command |= 0x80;             //nastav aktivni status
+                                        } 
+                                        else {
+                                                file_num |= main_thread_data << (8 * counter);
+                                                if (counter == 0) 
+                                                        main_thread_command = 0; //we received both bytes                                             
+                                        } 
+                                        break;
+                                //return file name at index        
+                                case GET_FILENAME: if (!cmd_active) {
+
+                                                if (file_num > menu_ctrl_file_count) {
+                                                        main_thread_command = 0;
+                                                        break;
+                                                }
+                                                length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num);  
+                                                counter = 0; 
+                                                main_thread_command |= 0x80;             //nastav aktivni status
+                                                break;
+                                        }
+                                        else {
+
+                                                if (counter < length + 1) main_thread_data = buff[counter];
+                                                else main_thread_command = 0;
+                                        }
+                                        break;
+                                case LOAD_ROM:  if (!cmd_active) {
+                                                counter = 2;
+                                                file_num = 0;
+                                                main_thread_command |= 0x80;             //nastav aktivni status
+                                                } 
+                                        else {
+                                                file_num |= main_thread_data << (8 * counter);
+                                                if (counter == 0) {
+                                                        main_thread_command = 0; //we received both bytes
+                                                        length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num );
+                                                        strcpy(full_filename, sord_folder);
+		                                        strcat(full_filename, buff);
+
+                                                        //zjistit typ rom a pozmenit offset a velikost
+                                                        res = load_rom(full_filename,(unsigned char *) &rom_base,0x4000,TRUE);
+                                                        if (res == FR_OK) {
+                                                                reset_sord(100);
+                                                                main_thread_data = 0;
+                                                        }
+                                                        else  main_thread_data = 0xff; //byla chyba nahravani romky                                            
+                                                }
+                                        } 
+                                        break;
+
+                        default:
+                                break;
+
+                        }
+       
         #ifdef ENABLE_SWO
                 if ((mem_mode & 0x10) == 0)
                 {
