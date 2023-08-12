@@ -22,19 +22,24 @@ void blink_pa6_pa7(int n) {
         int i=0;
         while(n) {
                 GPIOA->ODR = 0x0040+(i++ % 3)+1;
-                delay_ms(200);
+                delay_ms(50);
                 GPIOA->ODR = 0x0080+(i++ % 3)+1; 
-                delay_ms(200);
+                delay_ms(50);
                 n -= 1;
         }
         GPIOA->ODR = 0x00c0;
 }
 
 void reset_sord(int delay) {
+		return;
+		/*
+		takhle to nejde protoze na rst pin je zapojen vystup inventoru a vznikal by hazard.
+		je treba udelat to tak ze pri cteni kontrolovane oblasti pameti budeme posilat instrukci rst0 dokud nedojde k resetu
 		GPIOB->BSRRH = GPIO_Pin_10;                // ground PB10 -> reset
 		GPIOB->MODER |= GPIO_MODER_MODER10_0;      // PB10 - as output
 		delay_ms(delay);
 		GPIOB->MODER &= ~(GPIO_MODER_MODER10);     // PB10 - as input     
+		*/
 }
 
 void blink_debug_led(int delay) {
@@ -188,30 +193,52 @@ void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buff
 */
 
 // Load fname rom file into a buffer of size max_size. If blank_remaining=1 then fill up to max_size with zeros
-FRESULT load_rom(char *fname, unsigned char* buffer, uint32_t max_size, uint32_t blank_remaining) {
+FRESULT load_rom(char *fname, unsigned char* buffer) {
 	FRESULT res;
-        FIL     fil;
-        UINT BytesRead;
-
-	// zero the rom area
-	if (blank_remaining) {
-		memset(buffer,0,max_size);
-	}
+    FIL     fil;
+    UINT BytesRead;
 
 	memset(&fil, 0, sizeof(FIL));
 
 	res =  f_open(&fil, fname, FA_READ);
 
 	if (res == FR_OK) {
-		res = f_read(&fil,buffer, max_size, &BytesRead);
-		if (res != FR_OK) {
-			blink_debug_led(3000);
-		}
+/*
+00 - 8K ROM OD ADRESY 2000H
+01 - 8K ROM OD ADRESY 4000H
+02 - 16K ROM OD ADRESY 2000H
+*/
+		res = f_read(&fil,buffer, 0x5000, &BytesRead);
+		if (res == FR_OK) {
+			if(buffer[0] == 1) {
+				memcpy(&buffer + 0x2000, &buffer, BytesRead);
+				memset(&buffer, 0xff, 0x2000);			 
+			}
+		}		
 	}
+	//else blink_debug_led(3000);
+
 	f_close(&fil);
 	return res;
 }
 
+FRESULT load_binary(char *fname, unsigned char* buffer, int size) {
+	FRESULT res;
+    FIL     fil;
+    UINT BytesRead;
+
+	memset(&fil, 0, sizeof(FIL));
+
+	res =  f_open(&fil, fname, FA_READ);
+
+	if (res == FR_OK) {
+
+		res = f_read(&fil,buffer, size, &BytesRead);
+		
+	}
+	f_close(&fil);
+	return res;
+}
 
 uint32_t load_directory(char *dirname, uint8_t *index_buffer, uint32_t max_files) {
 	FRESULT res;

@@ -9,7 +9,7 @@ roms
 *.dfu
 *.elf
 *.bin
-*.asm
 *.hex
 lib/STM32F4xx_StdPeriph_Driver/
 hex2dfu
+interrupt.asm

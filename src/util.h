@@ -26,7 +26,8 @@ void blink_debug_led(int delay);
 void blink_pa6_pa7(int n);
 
 uint32_t suffix_match(char *name, char *suffix);
-FRESULT load_rom(char *fname, unsigned char* buffer, uint32_t max_size, uint32_t blank_remaining) ;
+FRESULT load_rom(char *fname, unsigned char* buffer);
+FRESULT load_binary(char *fname, unsigned char* buffer, int size);
 // void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buffer, unsigned char *grom_buffer, DSK *dsk);
 
 uint32_t load_directory(char *dirname, uint8_t *index_buffer, uint32_t max_files);

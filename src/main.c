@@ -41,6 +41,8 @@
 #define FIRST_FILE      6
 #define GET_FILENAME    7
 #define LOAD_ROM        8
+#define RESET_SORD      9
+#define DIR_SORD        10
 
 // FATFS stuff
 FATFS fs32;
@@ -543,10 +545,15 @@ void EXTI0_IRQHandler(void) {
                                         data = 0;               //main_thread_command = 0
                                         main_thread_data = file_num;
                                         break;
-                                case PREV_FILE: file_num--;
+                                case PREV_FILE: 
+                                        file_num--;
                                         data = 0;
                                         main_thread_data = file_num;
                                         break;
+                                case RESET_SORD:
+                                        reset_sord(100);
+                                        break;
+
                            }
                            main_thread_command = data;
                            break;
@@ -642,7 +649,7 @@ int __attribute__((optimize("O0")))  main(void) {
 	enable_fpu_and_disable_lazy_stacking();
 	init_fpu_regs();
 
-        register uint32_t main_thread_command_reg asm("r10") __attribute__((unused)) = 0;
+        //register uint32_t main_thread_command_reg asm("r10") __attribute__((unused)) = 0;
 	main_thread_data = 0;
 
 
@@ -704,13 +711,13 @@ int __attribute__((optimize("O0")))  main(void) {
                 //file_counter=-1;
 
                 // attempt to load the menu ROM from the root of the SD card
-                res = load_rom("menu.rom",(unsigned char *) &rom_base,0x2000,FALSE);
+                res = load_rom("menu.rom",(unsigned char *) &rom_base);
                 if (res != FR_OK) {
                 //blink_debug_led(500);
                 }
-
                 menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS ); //(uint16_t *)(CCMRAM_BASE)
         }
+        res = load_binary("debug.bin", (unsigned char *) &high_64k_base+0x8010, 0x1000);
 
 
 char buff[128];
@@ -737,6 +744,7 @@ int length;
                                 case SET_INDEX: if (!cmd_active) {
                                                 counter = 2; 
                                                 file_num = 0;
+                                                main_thread_data = 0;
                                                 main_thread_command |= 0x80;             //nastav aktivni status
                                         } 
                                         else {
@@ -766,26 +774,38 @@ int length;
                                 case LOAD_ROM:  if (!cmd_active) {
                                                 counter = 2;
                                                 file_num = 0;
+                                                main_thread_data = 0;
                                                 main_thread_command |= 0x80;             //nastav aktivni status
                                                 } 
                                         else {
                                                 file_num |= main_thread_data << (8 * counter);
                                                 if (counter == 0) {
-                                                        main_thread_command = 0; //we received both bytes
+                                                        
                                                         length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num );
                                                         strcpy(full_filename, sord_folder);
 		                                        strcat(full_filename, buff);
 
-                                                        //zjistit typ rom a pozmenit offset a velikost
-                                                        res = load_rom(full_filename,(unsigned char *) &rom_base,0x4000,TRUE);
+                                                        res = load_rom(full_filename,(unsigned char *) &rom_base); // high_64k_base+0x9000
                                                         if (res == FR_OK) {
-                                                                reset_sord(100);
+                                                                //reset_sord(100); vyresetuje to ridici program na zaklade statusu
                                                                 main_thread_data = 0;
                                                         }
-                                                        else  main_thread_data = 0xff; //byla chyba nahravani romky                                            
+                                                        else  main_thread_data = 0xff; //byla chyba nahravani romky   
+                                                        main_thread_command = 0; //we received both bytes and rom loaded                                         
                                                 }
                                         } 
                                         break;
+                                case DIR_SORD: if (!cmd_active) {
+                                                        main_thread_command |= 0x80;             //nastav aktivni status
+                                                        res = f_opendir(&dir, root_directory);
+                                                        
+                                                        if (res == FR_OK) {
+                                                                menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS );
+                                                        } else menu_ctrl_file_count = 0;
+                                                }
+                                                else {
+                                                        main_thread_command = 0;        
+                                                }
 
                         default:
                                 break;
@@ -820,10 +840,10 @@ int length;
                 while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
                 
                 //longer reset resets mem_mode
-                if (count > 10000000) mem_mode = 0;
+                //if (count > 10000000) mem_mode = 0;
 
                 //holding RESET for more than ~3sec will also make STM32 reset 
-                if (count > 30000000) 
+                if (count > 10000000) 
                 {
 #ifdef ENABLE_SWO
                         SWO_PrintString("STM32 reset.\n", 0);

@@ -1,4 +1,4 @@
-#define _VER_ 15.1
+#define _VER_ 15.2
 
 #include "main.h"
 
@@ -246,11 +246,11 @@ low_64k_base:
 //PB7 - EXCLK
 //PB8 - EXIOA           &60 - &6f
 //PB9 - EXIOB           &70 - &7F
-//*PB10 - RST
-//*PB11 - MRD            -RD & -MREQ
-//*PB12 - MWR            -WR & MREQ
-//PB13 - IORD           -RD & -IORQ replaced by PB1
-//PB14 - IOWR           -WR & -IORQ  replaced by PB0
+//*PB10 - RST                           kandidat na predratovani PC3
+//*PB11 - MRD            -RD & -MREQ    kandidat na predratovani PC1
+//*PB12 - MWR            -WR & MREQ     kandidat na predratovani PC2
+//PB13 - IORD           -RD & -IORQ     replaced by PB1
+//PB14 - IOWR           -WR & -IORQ     replaced by PB0
 //PB15 - ROMDS
 
 //*PC0 - ROM0	aktivni pri	&0000 - &1FFF, pouzito pro odpojeni MONITOR ROM nastavenim vystupu na high. Musi byt upraveny Sord
@@ -259,6 +259,9 @@ low_64k_base:
 //PC3 - EXM    	aktivni pri     &6000 - &6FFF
 //*PC4 - MRQ
 //PC13 - CLK
+
+//*PD8-PD15  D0 - D7 
+//*PE0-PE15  A0 - A15
 
 //As mentioned, most STM32F4 boards with an SD card adapter are wired the same way. The important pins are:
 
@@ -375,7 +378,7 @@ test_internal_RAM:
         blt     end_EXTI4_IRQHandler                    // internal RAM 7000-7fff get out 
 
 read_write:
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
+        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    TODO: POKUD PREDELAM MRD, MWR na PC pak toto cteni usetrime
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
 
         ldr     r0, =mem_mode                           // get mem working mode
@@ -439,7 +442,7 @@ read_memory:
 #endif
 
         ldr	r3, =jump_table
-	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, doesn't worked for me, possible usage of dsb instruction???
+	ldr	r3, [r3, r0, lsl #2]                    // writing directly to pc, didn't work for me, possible usage of dsb instruction???
         //dsb
         mov     pc, r3                                  
 
