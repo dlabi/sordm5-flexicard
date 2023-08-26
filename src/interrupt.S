@@ -246,40 +246,57 @@ basic_i:
 .section .bss
         .lcomm high_64k_base,0x10000                
 
+//                        WIRING TABLE
+//
 //* signs used in sw
+// BLACK BOARD MAXI           SIGNAL        MINI FlexiCard v1.0
+
+// rewired from PB14   *PB0  - IOWR     -  *PB0
+// rewired from PB13   *PB1  - IORD     -  *PB1       
+// removed due to swo   PB3  - RFSH     -  *PC1  
+//                      PB5  - WAIT     -  *PC5
+//                      PB6  - EXINT    -
+//                      PB7  - EXCLK    -
+//                      PB8  - EXIOA    -        
+//                      PB9  - EXIOB    -        
+//                    *PB10  - RST      -  *PB10                       
+//                    *PB11  - MRD      -  *PC3 
+//                    *PB12  - MWR      -  *PC2      
+//                     PB15  - ROMDS    -  *PC13
+//                     *PC0  - ROM0     -  *PC0
+//                      PC1  - ROM1	-          
+//                      PC2  - ROM2	-          
+//                      PC3  - EXM      -  *MRD	
+//                     *PC4  - MRQ      -  *PC4       
+//                     PC13  - CLK      -  PC6      
+
+// data & address bus
+//                *PD8-PD15  - D0..D7   -  *PD8-PD15  
+//                *PE0-PE15  - A0..A15  -  *PE0-PE15
+
+// used by FLASH
+//                    PC11   - /CS      -  PA15 
+//                     PD2   - MOSI     -  PB5
+//                    PC12   - SCK      -  PB3 
+//                     PC8   - MISO     -  PB4
+
+// used by SWD
+//                     PA13  - SWDIO    -  PA13
+//                     PA14  - SWCLK    -  PA14
+//                      PB3  - SWO      -  PB3   isn't available at header connector
+
+// user LEDS
+//                      PA6  - LED1     -  PA1
+//                      PA7  - LED2     -
+// used by SD
+//                      PC10 - DAT2     -  PC10
+//                      PC11 - DAT3     -  PC11
+//                       PD2 - CMD      -  PD2
+//                      PC12 - CLK      -  PC12
+//                       PC8 - DAT0     -  PC8
+//                       PC9 - DAT1     -  PC9
+
 //*PA0-PA3 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
-
-//*PB0 = IOWR
-//*PB1 = IORD
-//PB3 - RFSH            nutno zrusit kvuli swo debug
-//PB5 - WAIT
-//PB6 - EXINT
-//PB7 - EXCLK
-//PB8 - EXIOA           &60 - &6f
-//PB9 - EXIOB           &70 - &7F
-//*PB10 - RST                           kandidat na predratovani PC3
-//*PB11 - MRD            -RD & -MREQ    kandidat na predratovani PC1
-//*PB12 - MWR            -WR & MREQ     kandidat na predratovani PC2
-//PB13 - IORD           -RD & -IORQ     replaced by PB1
-//PB14 - IOWR           -WR & -IORQ     replaced by PB0
-//PB15 - ROMDS
-
-//*PC0 - ROM0	aktivni pri	&0000 - &1FFF, pouzito pro odpojeni MONITOR ROM nastavenim vystupu na high. Musi byt upraveny Sord
-//PC1 - ROM1	aktivni pri	&2000 - &3FFF
-//PC2 - ROM2	aktivni pri 	&4000 - &5FFF	
-//PC3 - EXM    	aktivni pri     &6000 - &6FFF
-//*PC4 - MRQ
-//PC13 - CLK
-
-//*PD8-PD15  D0 - D7 
-//*PE0-PE15  A0 - A15
-
-//As mentioned, most STM32F4 boards with an SD card adapter are wired the same way. The important pins are:
-
-//*PC11 -  /CS
-//*PD2 -  MOSI
-//*PC12 -  SCK 
-//*PC8  - MISO
 
 .section .text
 
@@ -421,7 +438,7 @@ mem_map:                                                // mem mode write addres
 .align 4                                                                  
 writable:
         vmov    r3, reg_high_64k_base                   // begining of RAM 
-	delay   18                                        //wait to safely detect if MWR is happening, 15 chodi ale semtam na hrane s MWR 0-42ns, 20: 42-83ns mezi MWR a RAM_WRITE a to chodi
+	delay   18                                      // wait to safely detect if MWR is happening, 15 chodi ale semtam na hrane s MWR 0-42ns, 20: 42-83ns mezi MWR a RAM_WRITE a to chodi
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,BSRR]
 #endif
