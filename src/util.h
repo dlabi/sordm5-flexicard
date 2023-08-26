@@ -11,7 +11,7 @@
 
 //#include "defines.h"
 
-#define GPIO_DEBUG_LED		GPIO_Pin_6
+#define GPIO_DEBUG_LED		GPIO_Pin_1
 // true/false
 #define TRUE 1
 #define FALSE 0
@@ -36,7 +36,7 @@ typedef struct
 void delay_us(const uint16_t us);
 void delay_ms(const uint16_t ms);
 void blink_debug_led(int delay);
-void blink_pa6_pa7(int n);
+void blink_pa1(int n);
 
 uint32_t suffix_match(char *name, char *suffix);
 FRESULT load_rom(char *fname, unsigned char* buffer, unsigned int* file_size );

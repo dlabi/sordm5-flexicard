@@ -391,14 +391,14 @@ void config_PC4_int(void) {
         NVIC_Init(&NVIC_InitStruct);
 }
 
-/* EXIOA -> PB8, EXIOB -> PB9, RST -> PB10, MRD -> PB11, MWR -> PB12, IOWR -> PB0 */
+/*  RST -> PB10 */
 void config_gpio_portb(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOB Periph clock enable */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -406,16 +406,15 @@ void config_gpio_portb(void) {
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
-/* Input Signals GPIO pins on ROM1 -> PC1, ROM2 -> PC2, EXM -> PC3, MRQ -> PC4, only PC4 is important*/
+/* Input Signals GPIO pins on MRQ -> PC4 */
 /* Output Signals GPIO pins on ROM0 -> PC0. need to make it open collector with a pullup, it disables MONITOR ROM */
-/* SD card uses PC10, PC11, PC12 out and PC8 in */
 void config_gpio_portc(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOC Periph clock enable */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
 	//input pins
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 ;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_4 ;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -423,7 +422,7 @@ void config_gpio_portc(void) {
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
 
-        //output pin
+        //input/output pin
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_0;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP; //GPIO_OType_OD
@@ -472,7 +471,7 @@ void config_gpio_addr(void) {
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 }
 
-/* Debug GPIO pins on PA0-PA3, PA6-7 LEDS */
+/* Debug GPIO pins on PA0-PA3, PA1 LED */
 void config_gpio_dbg(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOA Periph clock enable */
@@ -481,16 +480,8 @@ void config_gpio_dbg(void) {
 
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-        //input pins, custom button 
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
@@ -707,7 +698,7 @@ int __attribute__((optimize("O0")))  main(void) {
 #endif
 
 	//__enable_irq();
-        blink_pa6_pa7(2);
+        blink_pa1(2);
 
         memset(&fs32, 0, sizeof(FATFS));
         res = f_mount(&fs32, "",0);

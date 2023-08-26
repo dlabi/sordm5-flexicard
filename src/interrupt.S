@@ -1,4 +1,4 @@
-#define _VER_ 15.3
+#define _VER_ 16.0
 
 #include "main.h"
 
@@ -42,8 +42,8 @@
 #define reg_debug_var1	        s11   
 #define reg_moder_dataout	s12
 #define reg_moder_datain	s13
-#define reg_led_on	        s14
-#define reg_led_off	        s15
+#define reg_gpioc_base	        s14
+//#define reg_led_off	        s15
 
 // NOTE: FPU registers d8 and d9 are used somehow, so you cannot use s16,s17,s18 and s19
 // s16-s30 nejsou automaticky pushovany a nemeli byse menit
@@ -199,14 +199,18 @@
 #define	DATA_OUT_MODE	0x55550020
 #define	DATA_IN_MODE	0x00000020
 
-#define _MREQ_MASK	0x0010
-#define _EXIOA_MASK     0x0100
-#define _MRD_MASK	0x0800
-#define _MWR_MASK	0x1000
-#define _IORD_MASK	0x2000
-#define _IOWR_MASK	0x0001  //0x4000 PRO PB14
+#define _ROMDS_MASK     0x2000  //PC13
+#define _WAIT_MASK      0x0020  //PC5  
+#define _MREQ_MASK	0x0010  //PC4
+#define _MRD_MASK	0x0008  //PC3
+#define _MWR_MASK	0x0004  //PC2
+#define _RFRSH_MASK     0x0002  //PC1
+#define _ROM0_MASK      0x0001  //PC0
 
+#define _IORD_MASK	0x0002  //PB1
+#define _IOWR_MASK	0x0001  //PB0
 
+#define _LED_MASK       0x0002  //PA1
 
 .section .data
 
@@ -232,7 +236,7 @@ rom_base:
 basic_f:
 .incbin "../roms/basic-f.rom"
 msx:
-.incbin "../roms/msx.rom"
+//.incbin "../roms/msx.rom"
 
 .section ccmram
 low_64k_base:
@@ -240,9 +244,9 @@ low_64k_base:
 	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
 //.lcomm low_64k_base,0x10000  
 basic_g:                    
-.incbin "../roms/basic-g.rom"
+//.incbin "../roms/basic-g.rom"
 basic_i:
-.incbin "../roms/basic-i.rom"
+//.incbin "../roms/basic-i.rom"
 .section .bss
         .lcomm high_64k_base,0x10000                
 
@@ -266,7 +270,7 @@ basic_i:
 //                     *PC0  - ROM0     -  *PC0
 //                      PC1  - ROM1	-          
 //                      PC2  - ROM2	-          
-//                      PC3  - EXM      -  *MRD	
+//                      PC3  - EXM      -  
 //                     *PC4  - MRQ      -  *PC4       
 //                     PC13  - CLK      -  PC6      
 
@@ -322,8 +326,8 @@ init_fpu_regs:
         mov	r0,#0x10
 	vmov	reg_bit4_high,r0
 
-	//mov32	r0,GPIOC_BASE
-	//vmov	reg_gpioc_base,r0
+	mov32	r0,GPIOC_BASE
+	vmov	reg_gpioc_base,r0
 
 	mov32	r0,debug_var1
 	vmov	reg_debug_var1,r0
@@ -348,12 +352,6 @@ init_fpu_regs:
 
         mov32	r0,rom_base - 0x2000            //neni pak treba menit adr v r1, a ROM je tak "virtualne" od 2000
 	vmov	reg_rom_base_2000,r0
-
-        mov	r0,#0x44
-	vmov	reg_led_on,r0
-
-        mov	r0,#0xc0
-        vmov    reg_led_off,r0
 
 	//mov32	r0,0x10000000
 	//vmov	reg_ccmram_log,r0
@@ -388,12 +386,12 @@ clear_pending_iorq_int:
 	vmov	r3,reg_exti_base		        
 	vstr	reg_bit4_high,[r3,PR]	                // clear pending flag of our interrupt
 
-        vmov	r2,reg_gpiob_base
-        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // GPIOC->IDR
+        vmov	r2,reg_gpioc_base
+        ldr     r0,[r2, IDR]                            // GPIOC->IDR
         tst     r0,#_MREQ_MASK
         bne     end_EXTI4_IRQHandler                    // exit spurious IRQ
 
-        ldr     r1,[r2, B_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
+        ldr     r1,[r2, C_TO_E_OFFSET + IDR]            // GPIOE->IDR get the address
 
 test_internal_RAM:             
         cmp     r1, #0x7000
@@ -406,7 +404,7 @@ test_internal_RAM:
         blt     end_EXTI4_IRQHandler                    // internal RAM 7000-7fff get out 
 
 read_write:
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    TODO: POKUD PREDELAM MRD, MWR na PC pak toto cteni usetrime
+        //ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    TODO: POKUD PREDELAM MRD, MWR na PC pak toto cteni usetrime
         tst     r0,#_MRD_MASK                           // check MRD, if log. 0 then we present data, if not write to RAM
 
         ldr     r0, =mem_mode                           // get mem working mode
@@ -442,10 +440,10 @@ writable:
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,BSRR]
 #endif
-        ldr     r0,[r2, IDR]                            // GPIOB->IDR get mrd, mwr    
+        ldr     r0,[r2, IDR]                            // GPIOC->IDR get mrd, mwr    
         tst     r0,#_MWR_MASK                           // check MWR, if log. 0 then read databus, otherwise refreshing DRAM goin on->exit 
         bne     end_EXTI4_IRQHandler
-	ldr	r0,[r2, B_TO_D_OFFSET + IDR]            // GPIOD read databus
+	ldr	r0,[r2, C_TO_D_OFFSET + IDR]            // GPIOD read databus
 	lsrs	r0,r0,#8                                // PD16-PD8 >> 8
 	strb	r0,[r3,r1]                              // write to the RAM
 #ifdef DEBUG_SWO_WRITE
@@ -493,27 +491,15 @@ mode6:  tst     r1,#0x8000
 mode7:  b       end_EXTI4_IRQHandler                    // 2000-6fff read from other cartridge
 
 rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
-//        vmov	r3,reg_rom_base                       
-//        ldrb    r0,[r3]                               // get rom type: 00: 2000-3fff, 01: 4000-5fff, 02: 2000-5fff
-//        sub     r1, #0x2000                           // offset address from 0
-//        cmp     r0,#1
-//        IT EQ
-//        subeq   r1,#0x2000                            // rom type 01 from 4000: offset address from 0
-//        ITE GT                                          
-//        movgt   r0,#0x4000                            // type 02
-//        movle   r0,#0x2000                            // type 00
-//        cmp     r1,r0                                 // test if we are in rom range
-//        bcs.n   end_EXTI4_IRQHandler                  // no we aren't -> exit
-//        b       read
 
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
 #endif
                                                         // address <2000, MONITOR ROM must be disabled or we have hazard on the bus
 testMONITOR_ROM:
-        ldr     r0,[r2, B_TO_C_OFFSET + IDR]            // read PC0
+        ldr     r0,[r2]                                 // read PC0
         lsrs	r0,r0,#8
-        tst     r0,#1                                   // if high then MONITOR ROM must be disabled, without mod now should be low
+        tst     r0,#_ROM0_MASK                          // if high then MONITOR ROM must be disabled, without mod now should be low
         beq     end_EXTI4_IRQHandler                    
 
 ram:                                                    // 0000-1fff, 2000-6fff, 8000-ffff
@@ -538,8 +524,8 @@ read:
         
         vmov	r1,reg_moder_dataout
 
-        str     r0,[r2, B_TO_D_OFFSET + ODR]            // write data to the bus -> GPIOD ODR
-        str     r1,[r2, B_TO_D_OFFSET + MODER]          // MODER set to outputs
+        str     r0,[r2, C_TO_D_OFFSET + ODR]            // write data to the bus -> GPIOD ODR
+        str     r1,[r2, C_TO_D_OFFSET + MODER]          // MODER set to outputs
 
 #ifdef DEBUG_EXTI4_DATA_OUT
         vstr     reg_bit2_high,[r12,BSRR]                   // sets bit 2 only
@@ -568,7 +554,7 @@ read:
        // delay 3         //nevim zdali nutne, testuji nestabilitu 3 = 42ns
 
 // _MREQ should have just gone high here
-        str     r1,[r2, B_TO_D_OFFSET + MODER]          // tristate databus
+        str     r1,[r2, C_TO_D_OFFSET + MODER]          // tristate databus
 
 #ifdef DEBUG_EXTI4_TRISTATED
         mov     r0,#0x00040000                          // clears bit 2
@@ -642,8 +628,8 @@ clear_pending_iorq_int0:                                // musi byt jinak nezach
         
 #ifdef DEBUG_EXTI0_MEM_MODE_LED
         ite     eq
-        vstreq  reg_led_off,[r12,ODR]                   
-        vstrne  reg_led_on,[r12,ODR]                    
+        vstreq  reg_bit1_high,[r12,ODR]                   
+        vstrne  reg_zero,[r12,ODR]                    
 #endif
 
 enableMONITOR:    
@@ -653,7 +639,7 @@ enableMONITOR:
         b       end_EXTI0_IRQHandler
 
 disableMONITOR:
-        mov     r0, #1
+        mov     r0, #_ROM0_MASK
         str     r0,[r2, B_TO_C_OFFSET + BSRR]           // set PC0 to high which disable MONITOR rom         
         bic     r1, #2                                  // clears bit 1  
         orr     r1, #1                                  // sets bit 0

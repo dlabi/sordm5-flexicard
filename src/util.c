@@ -18,16 +18,16 @@ void delay_ms(const uint16_t ms)
    }
 }
 
-void blink_pa6_pa7(int n) {
+void blink_pa1(int n) {
         int i=0;
         while(n) {
-                GPIOA->ODR = 0x0040+(i++ % 3)+1;
+                GPIOA->ODR = 0x0002+(i++ % 3)+1;
                 delay_ms(50);
-                GPIOA->ODR = 0x0080+(i++ % 3)+1; 
+                GPIOA->ODR = 0x0000+(i++ % 3)+1; 
                 delay_ms(50);
                 n -= 1;
         }
-        GPIOA->ODR = 0x00c0;
+        GPIOA->ODR = 0x0002;
 }
 
 void reset_sord(int delay) {
