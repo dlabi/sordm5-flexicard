@@ -1,4 +1,4 @@
-#define _VER_ 15.2
+#define _VER_ 15.3
 
 #include "main.h"
 
@@ -12,12 +12,17 @@
 	.global EXTI4_IRQHandler
         .global	init_fpu_regs
 	.global rom_base
+        .global basic_f
+        .global basic_g
+        .global basic_i
+        .global msx
         .global low_64k_base
 	.global high_64k_base
 	.global main_thread_command
 	.global main_thread_data
         .global menu_ctrl_file_count
         .global mem_mode
+        .global offset1000
         .global debug_var1
         .global debug_var2
 
@@ -216,22 +221,28 @@ menu_ctrl_file_count:
         .word   0x00000000
 mem_mode:
         .byte   0x00                    // memory mode
-
+offset1000:
+        .byte   0x00                    //non zero value offsets high_64k_base by +1000h to allow read 7000-7fff region at 8000-8fff
 debug_var1:
 	.word	0x00000000
 //debug_var2:
 //	.word	0x00000000        
 
 rom_base:
-// be careful if you add roms and later delete them. The old ones might be still in the STM32 flash
+basic_f:
 .incbin "../roms/basic-f.rom"
+msx:
+.incbin "../roms/msx.rom"
 
 .section ccmram
 low_64k_base:
         //used as buffer for file list from SD card
 	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
-       //.lcomm low_64k_base,0x10000               
-
+//.lcomm low_64k_base,0x10000  
+basic_g:                    
+.incbin "../roms/basic-g.rom"
+basic_i:
+.incbin "../roms/basic-i.rom"
 .section .bss
         .lcomm high_64k_base,0x10000                
 
@@ -489,7 +500,13 @@ testMONITOR_ROM:
         beq     end_EXTI4_IRQHandler                    
 
 ram:                                                    // 0000-1fff, 2000-6fff, 8000-ffff
+        ldr     r3,=offset1000                          // get state of offset
+        ldrb    r3,[r3]
+        cmp     r3,#0                                   // is offset1000 active?
         vmov    r3, reg_high_64k_base                   // read from RAM
+	it ne
+	addne  r3,#0x1000                               // yes add 0x1000   
+        
          
 #ifdef DEBUG_EXTI4_RAM_READ
         vstr     reg_bit0_high,[r12,BSRR]               // sets bit 0 high

@@ -40,7 +40,7 @@
 #define PREV_FILE       5
 #define FIRST_FILE      6
 #define GET_FILENAME    7
-#define LOAD_ROM        8
+#define LOAD_FILE       8
 #define RESET_SORD      9
 #define DIR_SORD        10
 
@@ -58,6 +58,9 @@ GPIO_InitTypeDef  GPIO_InitStructure;
 extern volatile uint8_t *rom_base;
 extern volatile uint8_t *high_64k_base;
 extern volatile uint8_t *low_64k_base;
+extern volatile uint8_t *basic_i;
+extern volatile uint8_t *basic_g;
+extern volatile uint8_t *msx;
 
 extern void init_fpu_regs(void);
 
@@ -66,10 +69,20 @@ extern void init_fpu_regs(void);
 extern volatile BYTE main_thread_command;
 extern volatile BYTE main_thread_data;
 extern volatile BYTE mem_mode;
+extern volatile BYTE offset1000;
 extern volatile uint32_t menu_ctrl_file_count;
 
-int counter;
+unsigned int counter, file_size;
 uint16_t file_num;
+
+/*
+0000   21 06 20               LD   hl,2006h   
+0003   36 00                  LD   (hl),0   
+0005   FB                     EI      
+0006   ED 4D                  RETI     
+*/
+BYTE z80_code_ending[] = {0x21, 0x06, 0x20, 0x36, 0x00, 0xfb, 0xed, 0x4d};
+BYTE z80_code_full[50];
 
 #ifdef ENABLE_SEMIHOSTING
 extern void initialise_monitor_handles(void);   /*rtt*/
@@ -527,7 +540,7 @@ void EXTI0_IRQHandler(void) {
                 case DATA_PORT: 
                            switch(main_thread_command & 0x7f){
                                 case SET_INDEX:
-                                case LOAD_ROM:
+                                case LOAD_FILE:
                                         counter--;
                                         break;
                            }
@@ -711,13 +724,14 @@ int __attribute__((optimize("O0")))  main(void) {
                 //file_counter=-1;
 
                 // attempt to load the menu ROM from the root of the SD card
-                res = load_rom("menu.rom",(unsigned char *) &rom_base);
+                res = load_rom("menu.rom",(unsigned char *) &rom_base, &file_size);
                 if (res != FR_OK) {
                 //blink_debug_led(500);
                 }
                 menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS ); //(uint16_t *)(CCMRAM_BASE)
         }
-        res = load_binary("debug.bin", (unsigned char *) &high_64k_base+0x8010, 0x1000);
+        //res = load_binary("debug.bin", (unsigned char *) &high_64k_base+0x8010, 0x1000);
+        res = load_cas("debug.cas", (unsigned char *) &high_64k_base);
 
 
 char buff[128];
@@ -771,7 +785,7 @@ int length;
                                                 else main_thread_command = 0;
                                         }
                                         break;
-                                case LOAD_ROM:  if (!cmd_active) {
+                                case LOAD_FILE:  if (!cmd_active) {
                                                 counter = 2;
                                                 file_num = 0;
                                                 main_thread_data = 0;
@@ -784,10 +798,38 @@ int length;
                                                         length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num );
                                                         strcpy(full_filename, sord_folder);
 		                                        strcat(full_filename, buff);
+                                                        if (suffix_match(full_filename, ".rom")) {
+                                                                res = load_rom(full_filename,(unsigned char *) &rom_base, &file_size); // high_64k_base+0x9000
+                                                        }
+                                                        else if (suffix_match(full_filename, ".cas")){
+                                                                res = load_cas(full_filename,(unsigned char *) &high_64k_base);
+                                                        }
+                                                        else if (suffix_match(full_filename, ".msx")) {
+                                                                res = load_cas(full_filename,(unsigned char *) &high_64k_base);
+                                                                //memcpy(&high_64k_base,&msx, 0x8000);
+                                                                if (res == FR_OK) {
+                                                                        offset1000 = 0; // 7000h->8000h
+                                                                        /*
+                                                                        0000   3E 41                  LD   a,41h   
+                                                                        0002   CD 88 10               CALL   1088h
+                                                                        */
+                                                                        BYTE z80_code[] = {0x3e, 0x41, 0xcd, 0x88, 0x10};
+                                                                        //zjistit konec menu.rom, a prekopirovat tam kod
+                                                                        memcpy(&z80_code_full, &z80_code, sizeof(z80_code) );
+                                                                        memcpy(&z80_code_full[sizeof(z80_code)], &z80_code_ending, sizeof(z80_code_ending) );
+                                                                        my_memcpy((unsigned char *)&rom_base + file_size, z80_code_full, 50 );
 
-                                                        res = load_rom(full_filename,(unsigned char *) &rom_base); // high_64k_base+0x9000
+                                                                        //memcpy(&rom_base[file_size], &z80_code_full, sizeof(z80_code_full));
+                                                                        //jakmile posleme status 0, program v sordu zacne prerusovat na nasi obsluznou rutinu
+                                                                        //ktera musi prevest pro msx
+                                                                        main_thread_data = 0;
+                                                                }
+                                                                else  main_thread_data = 0xff; //byla chyba nahravani romky
+                                                        }
+                                                        
                                                         if (res == FR_OK) {
-                                                                //reset_sord(100); vyresetuje to ridici program na zaklade statusu
+                                                                //jakmile posleme status 0, program v sordu zacne prerusovat na nasi obsluznou rutinu
+                                                                //ktera musi prevest pro msx
                                                                 main_thread_data = 0;
                                                         }
                                                         else  main_thread_data = 0xff; //byla chyba nahravani romky   

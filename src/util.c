@@ -192,13 +192,25 @@ void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buff
 
 */
 
+
+void my_memcpy(unsigned char *dest, unsigned char *from, int length) {
+	unsigned char *q = dest;
+	unsigned char *p = from;
+
+	while (p < from + length) {
+		*q++ = *p++;
+	}
+
+}
+
 // Load fname rom file into a buffer of size max_size. If blank_remaining=1 then fill up to max_size with zeros
-FRESULT load_rom(char *fname, unsigned char* buffer) {
+FRESULT load_rom(char *fname, unsigned char* buffer, unsigned int* file_size) {
 	FRESULT res;
     FIL     fil;
     UINT BytesRead;
 
 	memset(&fil, 0, sizeof(FIL));
+	(*file_size)=0;
 
 	res =  f_open(&fil, fname, FA_READ);
 
@@ -214,6 +226,7 @@ FRESULT load_rom(char *fname, unsigned char* buffer) {
 				memcpy(&buffer + 0x2000, &buffer, BytesRead);
 				memset(&buffer, 0xff, 0x2000);			 
 			}
+			(*file_size)=BytesRead;
 		}		
 	}
 	//else blink_debug_led(3000);
@@ -235,6 +248,60 @@ FRESULT load_binary(char *fname, unsigned char* buffer, int size) {
 
 		res = f_read(&fil,buffer, size, &BytesRead);
 		
+	}
+	f_close(&fil);
+	return res;
+}
+
+FRESULT load_cas(char *fname, unsigned char* buffer) {
+	FRESULT res;
+    FIL     fil;
+    UINT BytesRead, length, offset;
+	SORD_HEADER sord_header;
+	unsigned char byte[1];
+	char buff[0x101];
+	char tmp[1];
+
+	memset(&fil, 0, sizeof(FIL));
+	res =  f_open(&fil, fname, FA_READ);
+
+	if (res == FR_OK) 
+	{
+
+		res = f_read(&fil,buff, 7, &BytesRead);
+		if (strcmp(buff,"SORDM5")!=0) {f_close(&fil); return -1;}
+		f_lseek(&fil,16);
+		res = f_read(&fil,byte,1, &BytesRead); //read header type
+		if (res != FR_OK) {f_close(&fil); return -1;}
+
+		while (!f_eof(&fil) && res !=-1)
+		{
+			if (*byte!='H') {res = -1; break;}
+
+			res = f_read(&fil,tmp,1, &BytesRead);
+			length = (UINT)*tmp + 1;
+			res |= f_read(&fil, &sord_header,sizeof(sord_header), &BytesRead);
+			if (BytesRead != length  || res != FR_OK) {res = -1; break;}
+
+			offset = 0;
+			while (*(f_gets((TCHAR *)byte,2,&fil))!='H' && !f_eof(&fil) )
+			{
+				res = f_read(&fil,tmp,1, &BytesRead);
+				length=(UINT)*tmp;
+				if (length==0) length=256;
+				res |= f_read(&fil,buff,length, &BytesRead);
+				if (BytesRead != length || res != FR_OK) {res = -1; break;}
+
+				//zahod crc
+				res = f_read(&fil,tmp,1, &BytesRead);
+				if (res != FR_OK) {res = -1; break;}
+				if (*byte=='D' || *byte=='F')
+				{
+					memcpy(&buffer[sord_header.Head + offset], &buff, length);
+					offset += length;
+				}
+			}
+		}
 	}
 	f_close(&fil);
 	return res;
