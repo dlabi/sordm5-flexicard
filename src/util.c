@@ -19,15 +19,14 @@ void delay_ms(const uint16_t ms)
 }
 
 void blink_pa1(int n) {
-        int i=0;
         while(n) {
-                GPIOA->ODR = 0x0002+(i++ % 3)+1;
+                GPIOA->BSRRH = 0x02; // rozsvit ledku
                 delay_ms(50);
-                GPIOA->ODR = 0x0000+(i++ % 3)+1; 
+				GPIOA->BSRRL = 0x02; // zhasni ledku
                 delay_ms(50);
-                n -= 1;
+                n--;
         }
-        GPIOA->ODR = 0x0002;
+		GPIOA->BSRRL = 0x02; // zhasni ledku
 }
 
 void reset_sord(int delay) {
@@ -59,139 +58,6 @@ uint32_t suffix_match(char *name, char *suffix) {
 	}
 	return FALSE;
 }
-/*
-// Find the rom and grom and dsk files in dir and load them into the buffers provided. If a dsk is found, we just return its name in *dsk_name
-void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buffer, unsigned char *grom_buffer, DSK *dsk) {
-	DIR dir;
-        FIL     fil;
-	FILINFO fno;
-	TCHAR fname[128];
-	FRESULT res;
-        UINT BytesRead;
-	UINT c_size=0;
-	UINT d_size=0;
-	UINT g_size=0;
-	UINT other_size=0;
-
-	// Assume there are no disks
-	//dsk_names[0][0]=0;		//DSK1
-	//dsk_names[1][0]=0;		//DSK2
-	//dsk_names[2][0]=0;		//DSK2
-
-	//dsk[0].id=1;
-	//dsk[1].id=2;
-	//dsk[2].id=3;
-
-	dsk[0].disk_filename[0]=0;
-	dsk[1].disk_filename[0]=0;
-	dsk[2].disk_filename[0]=0;
-
-	// zero the rom and grom memory before we load anything
-	memset(rom_buffer,0,0x8000);
-	memset(grom_buffer,0,0xA000);
-
-	res = f_opendir(&dir, app_directory);
-	if (res == FR_OK) {
-		for (;;) {
-			res = f_readdir(&dir, &fno);
-			if (res != FR_OK || fno.fname[0] == 0) break;
-			if (suffix_match(fno.fname,"c.bin")) {
-				strcpy(fname,app_directory);
-				strcat(fname,"/");
-				strcat(fname,fno.fname);
-				res =  f_open(&fil, fname, FA_READ);
-				if (res == FR_OK) {
-					// try to read 32K. ROMS that end in c.bin are usually 8K, but if they arent a C and D set, then its possible the
-					// ROMS name simply ends in a C. So if its a non C and D set then we could load up to 32K here. If it is a C and
-					// D set then the rom is probably 8K and we'll only read 8K
-					res = f_read(&fil,rom_buffer,0x8000,&BytesRead);
-					f_close(&fil);
-					c_size = BytesRead;
-					//if (BytesRead == 0x2000) {
-					//	memcpy(&rom_buffer[0x4000],rom_buffer,0x2000);
-					//}
-				}
-			} else if (suffix_match(fno.fname,"d.bin")) {
-				strcpy(fname,app_directory);
-				strcat(fname,"/");
-				strcat(fname,fno.fname);
-				res =  f_open(&fil, fname, FA_READ);
-				if (res == FR_OK) {
-					// TODO. This wont work if you just happen to have a game that ends in D (eg. stupid.bin)
-					// Load the D ROM into the 2nd 8K block, but we'll allow it to be bigger, up to 24K
-					res = f_read(&fil,&rom_buffer[0x2000],0x6000,&BytesRead);
-					f_close(&fil);
-					d_size = BytesRead;
-					//if (BytesRead == 0x2000) {
-					//	memcpy(&rom_buffer[0x6000],&rom_buffer[0x2000],0x2000);
-					//}
-
-				}
-			} else if (suffix_match(fno.fname,"g.bin")) {
-				strcpy(fname,app_directory);
-				strcat(fname,"/");
-				strcat(fname,fno.fname);
-				res =  f_open(&fil, fname, FA_READ);
-				if (res == FR_OK) {
-					res = f_read(&fil,grom_buffer,0xA000,&BytesRead);
-					f_close(&fil);
-					g_size = BytesRead;
-				}
-			} else if ( (suffix_match(fno.fname,".dsk")) || (suffix_match(fno.fname,".dsk1"))) {
-				strcpy(dsk[0].disk_filename, app_directory);
-				strcat(dsk[0].disk_filename, "/");
-				strcat(dsk[0].disk_filename, fno.fname);
-			} else if (suffix_match(fno.fname,".dsk2")) {
-				strcpy(dsk[1].disk_filename, app_directory);
-				strcat(dsk[1].disk_filename, "/");
-				strcat(dsk[1].disk_filename, fno.fname);
-			} else if (suffix_match(fno.fname,".dsk3")) {
-				strcpy(dsk[2].disk_filename, app_directory);
-				strcat(dsk[2].disk_filename, "/");
-				strcat(dsk[2].disk_filename, fno.fname);
-			} else {
-				// Assume its a normal ROM up to 32K in size
-				//
-				strcpy(fname,app_directory);
-				strcat(fname,"/");
-				strcat(fname,fno.fname);
-				res =  f_open(&fil, fname, FA_READ);
-				if (res == FR_OK) {
-					res = f_read(&fil,rom_buffer,0x8000,&BytesRead);
-					f_close(&fil);
-					other_size = BytesRead;
-				}
-
-			}
-
-		}
-		f_closedir(&dir);
-		// Sort out replication
-		if (other_size == 0) {
-			if (d_size == 0) {
-				if (c_size == 0x2000) {
-					for (int i=0;i<0x2000;i++) {
-						rom_buffer[0x2000+i] = rom_buffer[i];
-						rom_buffer[0x4000+i] = rom_buffer[i];
-						rom_buffer[0x6000+i] = rom_buffer[i];
-					}
-				}
-			} else if (d_size == 0x2000) {
-				if (c_size == 0x2000) {
-					for (int j=0;j<0x2000;j++) {
-						rom_buffer[0x4000+j] = rom_buffer[j];
-						rom_buffer[0x6000+j] = rom_buffer[0x2000+j];
-					}
-				}
-			}
-		}
-
-	}
-
-}
-
-*/
-
 
 void my_memcpy(unsigned char *dest, unsigned char *from, int length) {
 	unsigned char *q = dest;
@@ -282,7 +148,17 @@ FRESULT load_cas(char *fname, unsigned char* buffer) {
 			length = (UINT)*tmp + 1;
 			res |= f_read(&fil, &sord_header,sizeof(sord_header), &BytesRead);
 			if (BytesRead != length  || res != FR_OK) {res = -1; break;}
-
+			if ((sord_header.Attr & 2) == 2 || (suffix_match(fname, ".msx"))) {
+				memcpy( (unsigned char *) &rom_base+9,&sord_header.Start, 2); // autostart do rst5 vektoru
+				if (suffix_match(fname, ".msx")) {
+					*(((char*)&rom_base)+6) = 1;
+				}
+				else 
+				{
+				*(((char*)&rom_base)+6) = 2;
+				}
+			}
+			else { *(((char*)&rom_base)+6) = 0;}
 			offset = 0;
 			while (*(f_gets((TCHAR *)byte,2,&fil))!='H' && !f_eof(&fil) )
 			{

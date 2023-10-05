@@ -43,6 +43,8 @@
 #define LOAD_FILE       8
 #define RESET_SORD      9
 #define DIR_SORD        10
+#define OFFSET_RAM_ON   11
+#define OFFSET_RAM_OFF  12
 
 // FATFS stuff
 FATFS fs32;
@@ -55,12 +57,6 @@ FATFS fs32;
 
 GPIO_InitTypeDef  GPIO_InitStructure;
 
-extern volatile uint8_t *rom_base;
-extern volatile uint8_t *high_64k_base;
-extern volatile uint8_t *low_64k_base;
-extern volatile uint8_t *basic_i;
-extern volatile uint8_t *basic_g;
-extern volatile uint8_t *msx;
 
 extern void init_fpu_regs(void);
 
@@ -70,6 +66,7 @@ extern volatile BYTE main_thread_command;
 extern volatile BYTE main_thread_data;
 extern volatile BYTE mem_mode;
 extern volatile BYTE offset1000;
+extern volatile BYTE rst5;
 extern volatile uint32_t menu_ctrl_file_count;
 
 unsigned int counter, file_size;
@@ -407,7 +404,7 @@ void config_gpio_portb(void) {
 }
 
 /* Input Signals GPIO pins on MRQ -> PC4 */
-/* Output Signals GPIO pins on ROM0 -> PC0. need to make it open collector with a pullup, it disables MONITOR ROM */
+/* Output Signals GPIO pins on ROM0 -> PC0, ROMDS -> PC13, need to make it open collector with a pullup, it disables MONITOR ROM */
 void config_gpio_portc(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	/* GPIOC Periph clock enable */
@@ -429,9 +426,24 @@ void config_gpio_portc(void) {
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL; //GPIO_PuPd_DOWN; //GPIO_PuPd_UP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	//GPIOC->ODR = 0x0000; // defaultne je MONITOR pripnuty
+	
+        //ROMDS
+        GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_13;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP; //GPIO_OType_OD
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL; //GPIO_PuPd_DOWN; //GPIO_PuPd_UP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+        GPIOC->BSRRH = GPIO_Pin_13; // log. 0 to ROMDS, odepiname interni ROM v patici
 
-
+        //WAIT
+        GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL; //GPIO_PuPd_DOWN; //GPIO_PuPd_UP;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+        GPIOC->BSRRL = GPIO_Pin_5; // log. 1 to WAIT
 }
 
 /* Input/Output data GPIO pins on PD{8..15}. Also PD2 is used fo MOSI on the STM32F407VET6 board I have */
@@ -459,11 +471,7 @@ void config_gpio_addr(void) {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
 
 	/* Configure GPIO Settings */
-	GPIO_InitStructure.GPIO_Pin = 
-		GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | 
-		GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | 
-		GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | 
-		GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -557,6 +565,14 @@ void EXTI0_IRQHandler(void) {
                                 case RESET_SORD:
                                         reset_sord(100);
                                         break;
+                                case OFFSET_RAM_ON:
+                                        offset1000 = 1;
+                                        data = 0;               //main_thread_command = 0
+                                        break;
+                                case OFFSET_RAM_OFF:
+                                        offset1000 = 0;
+                                        data = 0;               //main_thread_command = 0
+                                        break;
 
                            }
                            main_thread_command = data;
@@ -642,12 +658,7 @@ int __attribute__((optimize("O0")))  main(void) {
         TCHAR full_filename[128];
         TCHAR root_directory[15];
         DIR dir;
-        //static FILINFO fno;
-        //int next_button_debounce;
-	//int first_time;
-	//int32_t file_counter;
         int cmd_active;
-	//uint32_t button_state;
 
         // You have to disable lazy stacking BEFORE initialising the scratch fpu registers
 	enable_fpu_and_disable_lazy_stacking();
@@ -655,6 +666,7 @@ int __attribute__((optimize("O0")))  main(void) {
 
         //register uint32_t main_thread_command_reg asm("r10") __attribute__((unused)) = 0;
 	main_thread_data = 0;
+        offset1000 = 0;
 
 
 	rcc_set_frequency(SYSCLK_240_MHZ);
@@ -698,7 +710,7 @@ int __attribute__((optimize("O0")))  main(void) {
 #endif
 
 	//__enable_irq();
-        blink_pa1(2);
+        blink_pa1(3);
 
         memset(&fs32, 0, sizeof(FATFS));
         res = f_mount(&fs32, "",0);
@@ -710,10 +722,6 @@ int __attribute__((optimize("O0")))  main(void) {
         res = f_opendir(&dir, root_directory);
         if (res == FR_OK) {
                
-                //first_time=FALSE;
-                //next_button_debounce=0;
-                //file_counter=-1;
-
                 // attempt to load the menu ROM from the root of the SD card
                 res = load_rom("menu.rom",(unsigned char *) &rom_base, &file_size);
                 if (res != FR_OK) {
@@ -731,127 +739,148 @@ int length;
 #ifdef ENABLE_SWO
 	//printf("%d\n", mem_mode);
         SWO_PrintString("hello world with SWO\r\n", 0);
-#endif	
-	while(1) {
-                        cmd_active = main_thread_command >> 7;   
-                        switch ( main_thread_command & 0x7f) {     
-                                //returns num of files 
-                                case GET_COUNT: if (!cmd_active) {
-                                                counter = 1; 
-                                                main_thread_command |= 0x80;             //nastav aktivni status
-                                        } 
-                                        else {
-                                                if (counter < 0) main_thread_command = 0; //we sent both bytes
-                                                else main_thread_data = (uint8_t)(menu_ctrl_file_count >> (8 * counter ));                   
-                                        }
-                                        break;
-                                //set file index
-                                case SET_INDEX: if (!cmd_active) {
-                                                counter = 2; 
-                                                file_num = 0;
-                                                main_thread_data = 0;
-                                                main_thread_command |= 0x80;             //nastav aktivni status
-                                        } 
-                                        else {
-                                                file_num |= main_thread_data << (8 * counter);
-                                                if (counter == 0) 
-                                                        main_thread_command = 0; //we received both bytes                                             
-                                        } 
-                                        break;
-                                //return file name at index        
-                                case GET_FILENAME: if (!cmd_active) {
+#endif
+        while (1)
+        {
+                cmd_active = main_thread_command >> 7;
+                switch (main_thread_command & 0x7f)
+                {
+                // returns num of files
+                case GET_COUNT:
+              if (!cmd_active)
+              {
+                main_thread_command |= 0x80; // nastav aktivni status
+                counter = 1;
+              }
+              else
+              {
+                if (counter < 0)
+                        main_thread_command = 0; // we sent both bytes
+                else
+                        main_thread_data = (uint8_t)(menu_ctrl_file_count >> (8 * counter));
+              }
+              break;
+                // set file index
+                case SET_INDEX:
+              if (!cmd_active)
+              {
+                main_thread_command |= 0x80; // nastav aktivni status
+                counter = 2;
+                file_num = 0;
+                main_thread_data = 0;  
+              }
+              else
+              {
+                file_num |= main_thread_data << (8 * counter);
+                if (counter == 0)
+                        main_thread_command = 0; // we received both bytes
+              }
+              break;
+                // return file name at index
+                case GET_FILENAME:
+              if (!cmd_active)
+              {
+                if (file_num > menu_ctrl_file_count)
+                {
+                        main_thread_command = 0;
+                        break;
+                }
+                main_thread_command |= 0x80; // nastav aktivni status
+                length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num);
+                counter = 0;
+                break;
+              }
+              else
+              {
+                if (counter < length + 1)
+                        main_thread_data = buff[counter];
+                else
+                        main_thread_command = 0;
+              }
+              break;
+                case LOAD_FILE:
+              if (!cmd_active)
+              {
+                main_thread_command |= 0x80; // nastav aktivni status
+                counter = 2;
+                file_num = 0;
+                main_thread_data = 0;
+              }
+              else
+              {
+                file_num |= main_thread_data << (8 * counter);
+                if (counter == 0)
+                {
 
-                                                if (file_num > menu_ctrl_file_count) {
-                                                        main_thread_command = 0;
-                                                        break;
-                                                }
-                                                length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num);  
-                                                counter = 0; 
-                                                main_thread_command |= 0x80;             //nastav aktivni status
-                                                break;
-                                        }
-                                        else {
-
-                                                if (counter < length + 1) main_thread_data = buff[counter];
-                                                else main_thread_command = 0;
-                                        }
-                                        break;
-                                case LOAD_FILE:  if (!cmd_active) {
-                                                counter = 2;
-                                                file_num = 0;
-                                                main_thread_data = 0;
-                                                main_thread_command |= 0x80;             //nastav aktivni status
-                                                } 
-                                        else {
-                                                file_num |= main_thread_data << (8 * counter);
-                                                if (counter == 0) {
-                                                        
-                                                        length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num );
-                                                        strcpy(full_filename, sord_folder);
-		                                        strcat(full_filename, buff);
-                                                        if (suffix_match(full_filename, ".rom")) {
-                                                                res = load_rom(full_filename,(unsigned char *) &rom_base, &file_size); // high_64k_base+0x9000
-                                                        }
-                                                        else if (suffix_match(full_filename, ".cas")){
-                                                                res = load_cas(full_filename,(unsigned char *) &high_64k_base);
-                                                        }
-                                                        else if (suffix_match(full_filename, ".msx")) {
-                                                                res = load_cas(full_filename,(unsigned char *) &high_64k_base);
-                                                                //memcpy(&high_64k_base,&msx, 0x8000);
-                                                                if (res == FR_OK) {
-                                                                        offset1000 = 0; // 7000h->8000h
-                                                                        /*
-                                                                        0000   3E 41                  LD   a,41h   
-                                                                        0002   CD 88 10               CALL   1088h
-                                                                        */
-                                                                        BYTE z80_code[] = {0x3e, 0x41, 0xcd, 0x88, 0x10};
-                                                                        //zjistit konec menu.rom, a prekopirovat tam kod
-                                                                        memcpy(&z80_code_full, &z80_code, sizeof(z80_code) );
-                                                                        memcpy(&z80_code_full[sizeof(z80_code)], &z80_code_ending, sizeof(z80_code_ending) );
-                                                                        my_memcpy((unsigned char *)&rom_base + file_size, z80_code_full, 50 );
-
-                                                                        //memcpy(&rom_base[file_size], &z80_code_full, sizeof(z80_code_full));
-                                                                        //jakmile posleme status 0, program v sordu zacne prerusovat na nasi obsluznou rutinu
-                                                                        //ktera musi prevest pro msx
-                                                                        main_thread_data = 0;
-                                                                }
-                                                                else  main_thread_data = 0xff; //byla chyba nahravani romky
-                                                        }
-                                                        
-                                                        if (res == FR_OK) {
-                                                                //jakmile posleme status 0, program v sordu zacne prerusovat na nasi obsluznou rutinu
-                                                                //ktera musi prevest pro msx
-                                                                main_thread_data = 0;
-                                                        }
-                                                        else  main_thread_data = 0xff; //byla chyba nahravani romky   
-                                                        main_thread_command = 0; //we received both bytes and rom loaded                                         
-                                                }
-                                        } 
-                                        break;
-                                case DIR_SORD: if (!cmd_active) {
-                                                        main_thread_command |= 0x80;             //nastav aktivni status
-                                                        res = f_opendir(&dir, root_directory);
-                                                        
-                                                        if (res == FR_OK) {
-                                                                menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS );
-                                                        } else menu_ctrl_file_count = 0;
-                                                }
-                                                else {
-                                                        main_thread_command = 0;        
-                                                }
-
-                        default:
-                                break;
-
+                        length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num);
+                        strcpy(full_filename, sord_folder);
+                        strcat(full_filename, buff);
+                        if (suffix_match(full_filename, ".rom") || suffix_match(full_filename, ".bin"))
+                        {
+                                //GPIOC->BSRRH = GPIO_Pin_5; // log. 0 to WAIT
+                                res = load_rom(full_filename, (unsigned char *)&rom_base, &file_size); // high_64k_base+0x9000
+                                //GPIOC->BSRRL = GPIO_Pin_5;       // log. 1 to WAIT
                         }
-       
-        #ifdef ENABLE_SWO
+                        else if (suffix_match(full_filename, ".cas"))
+                        {
+                                res = load_cas(full_filename, (unsigned char *)&high_64k_base);
+                        }
+                        else if (suffix_match(full_filename, ".msx"))
+                        {
+                                //GPIOC->BSRRH = GPIO_Pin_5; // log. 0 to WAIT
+                                res = FR_OK; //load_cas(full_filename, (unsigned char *)&high_64k_base);
+                                *(((char*)&rom_base)+6) = 1; //msx load
+                                
+                                if (res == FR_OK)
+                                {
+                                        memcpy(&high_64k_base,&msx, 0x8000);
+                                        offset1000 = 1; // 7000h->8000h
+                                        main_thread_data = 0;
+                                }
+                                else
+                                        main_thread_data = 0xff; // byla chyba nahravani romky
+                        }
+
+                        if (res == FR_OK)
+                        {
+                                main_thread_data = 0;
+                        }
+                        else
+                                main_thread_data = 0xff; // byla chyba nahravani romky
+                        main_thread_command = 0;         // we received both bytes and rom loaded
+                        //GPIOC->BSRRL = GPIO_Pin_5;       // log. 1 to WAIT
+                }
+              }
+              break;
+                case DIR_SORD:
+              if (!cmd_active)
+              {
+                main_thread_command |= 0x80; // nastav aktivni status
+                res = f_opendir(&dir, root_directory);
+
+                if (res == FR_OK)
+                {
+                        menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS);
+                }
+                else
+                        menu_ctrl_file_count = 0;
+              }
+              else
+              {
+                main_thread_command = 0;
+              }
+              break;
+                default:
+              break;
+                }
+
+#ifdef ENABLE_SWO
                 if ((mem_mode & 0x10) == 0)
                 {
-                        SWO_PrintString("Mem mode is :\n", 0);
-                        SWO_PrintChar(mem_mode+0x30, 0);
-                        SWO_PrintChar('\n', 0);
-                        mem_mode |= 0x10;
+                SWO_PrintString("Mem mode is :\n", 0);
+                SWO_PrintChar(mem_mode + 0x30, 0);
+                SWO_PrintChar('\n', 0);
+                mem_mode |= 0x10;
                 }
                 /*
                 if ((debug_var2 & 0x10000) == 0)
@@ -863,40 +892,35 @@ int length;
                 if ((debug_var1 & 0x10000) == 0)
                 {
                         printf("Read adr :%04lx\n", debug_var1);
-                        debug_var1 = 0x10000; 
+                        debug_var1 = 0x10000;
                 }
                 */
 
-        #endif
+#endif
                 int count = 0;
-                
-                while ( (GPIOB->IDR & GPIO_Pin_10) == 0) count +=1;
-                
-                //longer reset resets mem_mode
-                //if (count > 10000000) mem_mode = 0;
 
-                //holding RESET for more than ~3sec will also make STM32 reset 
-                if (count > 10000000) 
+                while ((GPIOB->IDR & GPIO_Pin_10) == 0)
+                        count += 1;
+
+                // longer reset resets mem_mode
+                // if (count > 10000000) mem_mode = 0;
+
+                // holding RESET for more than ~3sec will also make STM32 reset
+                if (count > 10000000)
                 {
 #ifdef ENABLE_SWO
-                        SWO_PrintString("STM32 reset.\n", 0);
-#endif                        
-                        NVIC_SystemReset();
+              SWO_PrintString("STM32 reset.\n", 0);
+#endif
+              NVIC_SystemReset();
                 }
-               
-                if ((mem_mode & 0xf)  == 0 || (mem_mode & 0xf) == 2 || (mem_mode & 0xf)== 5 || (mem_mode & 0xf) == 6) 
+
+                if ((mem_mode & 0xf) == 0 || (mem_mode & 0xf) == 2 || (mem_mode & 0xf) == 5 || (mem_mode & 0xf) == 6)
                 {
-                GPIOA->BSRRL = 0xc0;         //zhasni obe ledky
+                        GPIOA->BSRRL = 0x02; // zhasni ledku
                 }
                 else
                 {
-                GPIOA->BSRRH = 0x80 ;         //rozsvit ledku
+                        GPIOA->BSRRH = 0x02; // rozsvit ledku
                 }
-                
-        }	
-        			   
+        }
 }
-		
-
-
-

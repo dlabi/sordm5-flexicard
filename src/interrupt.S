@@ -1,6 +1,4 @@
-#define _VER_ 16.0
-
-#include "main.h"
+#define _VER_ 16.1
 
 	.syntax unified
 	.cpu cortex-m4
@@ -215,7 +213,6 @@
 .section .data
 
 //high_64k_base:
-//.incbin "../roms/msx_dump.rom"
 // main_thread_data must immediately follow main_thread_command
 main_thread_command:
 	.byte	0x00			// command byte
@@ -236,7 +233,7 @@ rom_base:
 basic_f:
 .incbin "../roms/basic-f.rom"
 msx:
-//.incbin "../roms/msx.rom"
+.incbin "../roms/msx.rom"
 
 .section ccmram
 low_64k_base:
@@ -421,6 +418,9 @@ write_check:                                            // same as 64kbf ver 2c
         ldr     r3, =mem_map
         ldr     r3, [r3,r0, lsl #2]                     // get write starting offset from mem_map table
         cmp     r1, r3
+#ifdef DEBUG_EXTI4_RAM_WRITECHECK
+        vstr    reg_bit1_high,[r12,BSRR]
+#endif        
         bge     writable
         b       end_EXTI4_IRQHandler
 
@@ -507,8 +507,10 @@ ram:                                                    // 0000-1fff, 2000-6fff,
         ldrb    r3,[r3]
         cmp     r3,#0                                   // is offset1000 active?
         vmov    r3, reg_high_64k_base                   // read from RAM
-	it ne
-	addne  r3,#0x1000                               // yes add 0x1000   
+        beq     read 
+	cmp     r1,#0x9000                              // reading 8000-8fff?
+        bge     read                                    // no
+	sub     r3,#0x1000                               // yes sub 0x1000 , eg. reading from 8000 actually reads from 7000  
         
          
 #ifdef DEBUG_EXTI4_RAM_READ

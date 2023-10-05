@@ -7,9 +7,11 @@ NEXT_FILE       EQU 4
 PREV_FILE       EQU 5
 FIRST_FILE      EQU 6
 GET_FILENAME    EQU 7
-LOAD_ROM        EQU 8
+LOAD_FILE       EQU 8
 RESET_SORD      EQU 9
 DIR_SORD        EQU 10
+OFFSET_RAM_ON   EQU 11
+OFFSET_RAM_OFF  EQU 12
 
 DATA_PORT       EQU 80H
 CMD_PORT        EQU 81H
@@ -22,9 +24,15 @@ PUTCHAR         EQU 1088H ;DSPCH
 CLRSC           EQU 1393H ; clear screen
 DECTR           EQU 090BH ;DECODEKEY 
 TO_RET          EQU 002EH; ret
+BEL             EQU 1176H
 IPL             EQU TO_RET
 BUFFER          EQU 7800H ;vyrovnavajici pamet pro prenos nazvu
-
+RST4JMP         EQU 0 ;used as flag if we are already processing int
+RST5JMP         EQU 0
+IVCTC1          EQU   7002H
+FLAG            EQU 2006h
+AUTOSTART       EQU 2009h
+STACK           EQU 0ff00h 
 
 CMD     MACRO X
         ld a, X
@@ -44,8 +52,11 @@ IF ROM
         DB 00           ;rom type
         DW BEGIN        ;rom start
         DW IPL          ;rom loader
-        ;DW RST4JMP
-        ;DW RST5JMP
+        DB 0xc3
+flag:       
+        DW RST4JMP
+        DB 0xc3      
+        DW RST5JMP
 
 ELSE
         ORG 7800H
@@ -53,6 +64,7 @@ ENDIF
 
 BEGIN:
         call TEXTMODE
+        call BEL
 start:  CMD DIR_SORD
         call CLRSC
         ld hl, text1
@@ -138,7 +150,7 @@ waitkey: call SCNKB
          jr z, waitkey
          call DECTR
          cp 0DH
-         call z, 8010h
+         call z, 9010h
 CISLO:   cp 030H
          jp  C, start 
          cp 040H
@@ -146,7 +158,7 @@ CISLO:   cp 030H
          sub 31H
          ld c, a
          di
-         CMD LOAD_ROM           ;nici reg a
+         CMD LOAD_FILE           ;nici reg a
          ld a, c
          ld c, DATA_PORT
          ld b,0
@@ -155,16 +167,39 @@ CISLO:   cp 030H
          out (c),a              ;send lower byte
          DELAY 13
 w:       in a,(CMD_PORT)
-         cp LOAD_ROM or 80H
+         cp LOAD_FILE or 80H
          jr z, w
          ei
-         DELAY 13       
+         DELAY 13    
          in a,(DATA_PORT)       ; load status 0 = OK FF=KO
          or a
-         jp z, 0    ; reset sorda
+         jp z, goahead
          ld hl, text3 
          call DSPLTB
          jp waitkey
+goahead:
+         ld a, (2006H)        ;read extra status
+         cp 1
+         jr z, msx
+         cp 2                   ; cas with autostart loaded 
+         jr nz, nextcheck
+         rst 28h
+nextcheck:         
+noexit:  jp waitkey
+
+msx:    di
+        LD SP,STACK         
+        ld hl,8000h
+        ld de,7000h
+        ld bc,1000h
+        ldir
+        CMD OFFSET_RAM_OFF      ; zrusi offset
+        ld hl,(AUTOSTART)
+        ;ld (7cf0h), hl ; patchni msx aby po startu skocilo do hry
+        ld a,1
+        out (30h),a     ; odepni romky
+        rst 0
+
 
 OUTHEX:
 ; Input: c
@@ -203,8 +238,8 @@ Inner:
         RET                     ;Return from call to this subroutine
 
 
-
-text1: db "FLEXI CARD MENU v0.2 Ales Dlabac 08/12", 0
+text1: db "FLEXI CARD MENU v0.3 Ales Dlabac 10/05", 0
 text2: db "NO FILES FOUND :-(", 0
 text3: db "ERROR LOADING ROM", 0
+
 
