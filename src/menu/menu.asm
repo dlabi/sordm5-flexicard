@@ -42,6 +42,7 @@ FLAG            EQU 200Bh
 HEAD:           EQU 200Ch
 SIZE:           EQU 200Eh
 STACK           EQU 0ff00h 
+DEBUG           EQU 9010h ; debug program e.g. from debug.cas
 
 CMD     MACRO X
         ld a, X
@@ -222,7 +223,7 @@ waitkey: push bc
          pop af
          pop bc
          cp 0DH
-         call z, 9010h          ;call debug
+         call z, DEBUG          ;call debug
          cp 3AH
          jp z, NEXTPAGE
          cp 3BH
@@ -242,7 +243,7 @@ index:   sub 61H
          ld c,a
          add hl, bc             ; page * maxlines + index
          di
-         CMD LOAD_FILE           ;nici reg a
+         CMD LOAD_FILE           ;destroys reg a
          ld c, DATA_PORT
          out (c),h              ;send higher byte
          DELAY 13
@@ -300,11 +301,13 @@ msx:    di
         ld de,7000h
         ld bc,1000h
         ldir
-        CMD OFFSET_RAM_OFF      ; zrusi offset
+        CMD OFFSET_RAM_OFF      ; offset cancel
         ld hl,(AUTOSTART)
-        ld (7cf1h), hl ; patchni msx aby po startu skocilo do hry
+        ld (7cf1h), hl ; patch msx init routine to game start address
         ld a,1
-        ld (8000h),a ; snad pomuze k neprepisovani 1. byte hry
+        ld (8000h),a ; msx scans for free memory by writing some data which overwrittes our game, 
+                     ; so if we pretend "something" is from 8000h it stops right there. For game from 8000h
+                     ; we loose first byte :-( 
         out (30h),a     ; disable roms
         rst 0
 
@@ -392,7 +395,7 @@ FOOTER:
         pop hl
         ret
 
-head:           db "FLEXI CARD MENU v0.7 Ales Dlabac 12/25\r", 0
+head:           db "FLEXI CARD MENU v0.8 A.Dlabac 23/12/25\r", 0
 nofiles:        db "NO FILES FOUND :-(", 0
 loaderror:      db "ERROR LOADING ROM", 0
 page:           db "PAGE ", 0
