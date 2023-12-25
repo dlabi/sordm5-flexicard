@@ -92,7 +92,6 @@
 
 
 .section .rodata
-// Can put up to four 16K roms here which will get mapped to rom 12, 13, 14 and 15
 
         .equ PERIPH_BASE     ,   0x40000000                                                                
         .equ PERIPH_BASE_APB1,   (PERIPH_BASE + 0x00000)
@@ -365,7 +364,7 @@ init_fpu_regs:
 	mov32	r0,GPIOB_BASE
 	vmov	reg_gpiob_base,r0
 
-        mov32	r0,rom_base - 0x2000            //neni pak treba menit adr v r1, a ROM je tak "virtualne" od 2000
+        mov32	r0,rom_base - 0x2000            //makes rom_base "virtually" from 2000h so r1 need not to be adjusted
 	vmov	reg_rom_base_2000,r0
 
 	//mov32	r0,0x10000000
@@ -453,8 +452,8 @@ mem_map:                                                // mem mode write addres
     .word 0x10000                                       // mode 7 - write disabled
 .align 4                                                                  
 writable:
-        vmov    r3, reg_high_64k_base                   // begining of RAM 
-	delay   18                                      // wait to safely detect if MWR is happening, 15 chodi ale semtam na hrane s MWR 0-42ns, 20: 42-83ns mezi MWR a RAM_WRITE a to chodi
+        vmov    r3, reg_high_64k_base                   // beginning of RAM 
+	delay   18                                      // wait to safely detect if MWR is happening, value 15 works but time to time fails with MWR 0-42ns, 20: 42-83ns between MWR and RAM_WRITE and this works well
 #ifdef DEBUG_EXTI4_RAM_WRITE
         vstr    reg_bit1_high,[r12,BSRR]
 #endif
@@ -528,7 +527,7 @@ ram:                                                    // 0000-1fff, 2000-6fff,
         beq     read 
 	cmp     r1,#0x9000                              // reading 8000-8fff?
         bge     read                                    // no
-	sub     r3,#0x1000                               // yes sub 0x1000 , eg. reading from 8000 actually reads from 7000  
+	sub     r3,#0x1000                              // yes sub 0x1000 , eg. reading from 8000 actually reads from 7000  
         
          
 #ifdef DEBUG_EXTI4_RAM_READ
@@ -548,7 +547,7 @@ read:
         str     r1,[r2, C_TO_D_OFFSET + MODER]          // MODER set to outputs
 
 #ifdef DEBUG_EXTI4_DATA_OUT
-        vstr     reg_bit2_high,[r12,BSRR]                   // sets bit 2 only
+        vstr     reg_bit2_high,[r12,BSRR]               // sets bit 2 only
 #endif
 
 // Use WFE to wait until _MREQ goes high
@@ -571,7 +570,7 @@ read:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe                                             // wait for the positive edge of _MREQ
 
-       // delay 3         //don't know if necessary, testing instability 3 = 42ns
+       // delay 3                                       //don't know if necessary, testing instability 3 = 42ns
 
 // _MREQ should have just gone high here
         str     r1,[r2, C_TO_D_OFFSET + MODER]          // tristate databus
@@ -598,7 +597,7 @@ unrolled_exit_EXTI4
 //******************************************************************************************************************************************
 
 #ifdef UNDEFINED
-
+// now we are handling IOWR in main.c
 // _IORW interrupt -ve edge
 .type EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
