@@ -1,28 +1,16 @@
-#SRCS=main.c system_stm32f4xx.c stm32f4xx_it.c
-#SRCS=main.c system_stm32f4xx.c working-stm32f4xx_it.c
-
-#
-#
 SRCS=main.c system_stm32f4xx.c util.c
 
 # Library modules
-#SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_exti.c stm32f4xx_pwr.c stm32f4xx_adc.c
 SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_sdio.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_pwr.c 
-
 
 # Add in stuff for SD access
 SRCS += diskio.c  ff.c ffunicode.c stm32f4_discovery.c  stm32f4_discovery_sdio_sd.c system_stm32f4xx.c misc_handlers.c stm32f4xx_sdio.c stm32f4xx_dma.c
-
-#SRCS += stm32f4xx_tim.c 
-#SRCS += stm32f4_discovery.c
 
 # Binaries will be generated with this name (.elf, .bin, .hex, etc)
 PROJ_NAME=interrupt
 
 #######################################################################################
-
-#STM_COMMON=../../..
-# You need libs somewhere!
+# Modify STM_COMMON where your STM32F4DISCOVERY firmare package is
 STM_COMMON=/mnt/d/_DATA/Sord/stm32f407vet6/STM32F4-Discovery_FW_V1.1.0
 
 CC=arm-none-eabi-gcc
@@ -61,7 +49,9 @@ CFLAGS += -DMODDED_SORD
 #this will include as well bi,bg roms inside firmware, in present time it is not implemented to load Basic programs. So it can be disabled now
 #CFLAGS += -DOTHER_BASICS
 
-#CFLAGS += -DENABLE_SWO #debug swo, board must be in debugging mode oherwise it won't boot up if enabled, pozor kdyz povoleno r12 se nastavi jinak, proto nefunguji ostatni non-swo debugy!
+#debug swo, board must be in debugging mode oherwise it won't boot up if enabled
+#be carefull if this is enabled it destroys r12 what breaks other non-swo debuging modes below!
+#CFLAGS += -DENABLE_SWO
 
 #CFLAGS += -DDEBUG_SWO_WRITE					
 #CFLAGS += -DDEBUG_SWO_MONITOR_READ
@@ -118,8 +108,8 @@ clean:
 	rm -f $(PROJ_NAME).hex
 	rm -f $(PROJ_NAME).bin
 
-stlink:
 #attaches stlink from host win to wsl
+stlink:
 	usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
 
 # Flash the STM32F4 via stlink dongle
@@ -130,5 +120,6 @@ burn:
 dfu-burn:
 	sudo dfu-util -v -d 0483:df11 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
 
+# builds menu.rom using pasmo cross assembler
 menu.rom:
 	pasmo -v --equ ROM=1 menu/menu.asm menu/menu.rom 
