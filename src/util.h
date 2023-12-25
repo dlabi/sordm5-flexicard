@@ -41,7 +41,7 @@ void blink_pa1(int n);
 uint32_t suffix_match(char *name, char *suffix);
 FRESULT load_rom(char *fname, unsigned char* buffer, unsigned int* file_size );
 FRESULT load_binary(char *fname, unsigned char* buffer, int size);
-FRESULT load_cas(char *fname, unsigned char* buffer);
+FRESULT load_cas(char *fname, unsigned char* buffer, SORD_HEADER* cas_header);
 // void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buffer, unsigned char *grom_buffer, DSK *dsk);
 
 uint32_t load_directory(char *dirname, uint8_t *index_buffer, uint32_t max_files);

@@ -1,4 +1,4 @@
-#define _VER_ 16.1
+#define _VER_ 16.2
 
 	.syntax unified
 	.cpu cortex-m4
@@ -13,6 +13,9 @@
         .global basic_f
         .global basic_g
         .global basic_i
+        .global basic_f_end
+        .global basic_g_end
+        .global basic_i_end
         .global msx
         .global low_64k_base
 	.global high_64k_base
@@ -210,6 +213,26 @@
 
 #define _LED_MASK       0x0002  //PA1
 
+   
+//rom repository
+basic_f:
+.incbin "../roms/basic-f.rom"
+basic_f_end:
+
+#ifdef MODDED_SORD                                   
+msx:
+.incbin "../roms/msx.rom"
+msx_end:
+#endif
+#ifdef OTHER_BASICS
+basic_g:                    
+.incbin "../roms/basic-g.rom"
+basic_g_end:
+basic_i:
+.incbin "../roms/basic-i.rom"
+basic_i_end:
+#endif
+
 .section .data
 
 //high_64k_base:
@@ -227,23 +250,18 @@ offset1000:
 debug_var1:
 	.word	0x00000000
 //debug_var2:
-//	.word	0x00000000        
+//	.word	0x00000000     
 
+//this part of ram is used for simulating rom area, by default basic-f is here
 rom_base:
-basic_f:
 .incbin "../roms/basic-f.rom"
-msx:
-.incbin "../roms/msx.rom"
 
 .section ccmram
 low_64k_base:
-        //used as buffer for file list from SD card
-	// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
+//used as buffer for file list from SD card
+// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
 //.lcomm low_64k_base,0x10000  
-basic_g:                    
-//.incbin "../roms/basic-g.rom"
-basic_i:
-//.incbin "../roms/basic-i.rom"
+
 .section .bss
         .lcomm high_64k_base,0x10000                
 
@@ -490,7 +508,7 @@ mode6:  tst     r1,#0x8000
                                                         // 0000-1fff read from Sord ROM
 mode7:  b       end_EXTI4_IRQHandler                    // 2000-6fff read from other cartridge
 
-rom:                                                    // cokoliv mimo rom range = exit, tj. 0-1fff, >7000 a pak podle typu rom
+rom:                                                    // anything outside rom area = exit, i.e 0-1fff, >7000 and then by rom type
 
 #ifdef  DEBUG_SWO_MONITOR_READ
         str     r1, [r12]
@@ -536,13 +554,13 @@ read:
 // Use WFE to wait until _MREQ goes high
         vmov	r3,reg_exti_base
 
-        //zakaz interupt protoze jinak nam bude reagovat i INT na nabeznou hranu a my chceme jen event
+        //disable interrupt otherwise it would be triggered by incoming rising edge too and we want just event
         ldr     r0,[r3,IMR]             // EXTI_IMR
         and     r0,#0xffffffef          // turn off  PC4 int
         str     r0,[r3,IMR]             // EXTI_IMR
         
         vstr    reg_bit4_high,[r3,PR]                   // EXTI_PR  - clear the current PC4 interrupt
-        set_EXTI4_RTSR                                  // povol nabeznou hranu na EXTI4, abychom tristatovali co nejdrive, pouziva r3
+        set_EXTI4_RTSR                                  // enable rising edge on EXTI4, to tristatate bus ASAP, uses r3
         vstr    reg_bit4_high,[r3,EMR]                  // EXTI_EMR - wait for an event rather than an interrupt on PC4
        
         vmov	r1,reg_moder_datain
@@ -553,7 +571,7 @@ read:
         // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe                                             // wait for the positive edge of _MREQ
 
-       // delay 3         //nevim zdali nutne, testuji nestabilitu 3 = 42ns
+       // delay 3         //don't know if necessary, testing instability 3 = 42ns
 
 // _MREQ should have just gone high here
         str     r1,[r2, C_TO_D_OFFSET + MODER]          // tristate databus
@@ -562,7 +580,7 @@ read:
         mov     r0,#0x00040000                          // clears bit 2
         str     r0,[r12,BSRR]
 #endif
-        clear_EXTI4_RTSR                                // zakaz INT na nabeznou hranu, pouziva r3
+        clear_EXTI4_RTSR                                // disable rising edge for INT, uses r3
 
 end_EXTI4_IRQHandler:           
 
@@ -592,7 +610,7 @@ EXTI0_IRQHandler:
         vmov	r12,reg_gpioa_base
 #endif
 #ifdef DEBUG_EXTI0_START
-        vstr     reg_bit2_high,[r12,BSRR]               // sets bit 2 only, indikuje aktivni int0
+        vstr     reg_bit2_high,[r12,BSRR]               // sets bit 2 only, indicates int0 is active
 #endif                      
 
 clear_pending_iorq_int0:                                // musi byt jinak nezachytime vsechny edge

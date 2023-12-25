@@ -12,19 +12,7 @@
 
 #define	DATA_OUT_MODE	0x55550020
 #define	DATA_IN_MODE	0x00000020
-
-#define MENU_DIRCACHE_OFFSET		0x1000		// You need enough room to load a lot of files less than 0x8000 where the emulated 32K ram starts
-#define MENU_LISTING_OFFSETS		0x100
 #define MENU_MAX_DIRECTORY_ITEMS	500 //1024 jinak musim zmensit max delku jmena souboru ze 128 na 64
-#define MENU_LISTING_STRINGS		(MENU_LISTING_OFFSETS+(2*MENU_MAX_DIRECTORY_ITEMS))
-
-#define MENU_LISTING_BASE		0x100		// So the TI needs to write this to the address register to access the table of 16bit offsets
-#define MENU_LOAD_FILE_BASE		0x0 		// The TI needs to write this to the address register before writing the filename you want to load
-#define COMMAND_ACTIVE                  0x80
-
-//
-// ---------------
-
 #define CCMRAM_BASE	0x10000000
 
 // FLEXI CARD PORTS
@@ -71,15 +59,13 @@ extern volatile uint32_t menu_ctrl_file_count;
 
 unsigned int counter, file_size;
 uint16_t file_num;
+SORD_HEADER cas_header;
+BYTE *p_cas_flag = (((BYTE*)&rom_base)+0xb);
+uint16_t *p_cas_start = (((BYTE*)&rom_base)+0x9);
+uint16_t *p_cas_head = (((BYTE*)&rom_base)+0xc);
+uint16_t *p_cas_size = (((BYTE*)&rom_base)+0xe);
 
-/*
-0000   21 06 20               LD   hl,2006h   
-0003   36 00                  LD   (hl),0   
-0005   FB                     EI      
-0006   ED 4D                  RETI     
-*/
-BYTE z80_code_ending[] = {0x21, 0x06, 0x20, 0x36, 0x00, 0xfb, 0xed, 0x4d};
-BYTE z80_code_full[50];
+
 
 #ifdef ENABLE_SEMIHOSTING
 extern void initialise_monitor_handles(void);   /*rtt*/
@@ -434,7 +420,7 @@ void config_gpio_portc(void) {
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL; //GPIO_PuPd_DOWN; //GPIO_PuPd_UP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-        GPIOC->BSRRH = GPIO_Pin_13; // log. 0 to ROMDS, odepiname interni ROM v patici
+        GPIOC->BSRRH = GPIO_Pin_13; // log. 0 to ROMDS, blocks ROM inside Sord
 
         //WAIT
         GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_5;
@@ -540,20 +526,26 @@ void EXTI0_IRQHandler(void) {
                            switch(main_thread_command & 0x7f){
                                 case SET_INDEX:
                                 case LOAD_FILE:
+                                        if (main_thread_command & 0x80) {
                                         counter--;
+                                        }
                                         break;
                            }
                            main_thread_data = data;
                            break;
                 case CMD_PORT: 
                            switch(data){
+                                case BREAK:
+                                        main_thread_data = 0;
+                                        data = 0;
+                                        break;
                                 case FIRST_FILE:
                                         file_num = 0;
                                         data = 0;               //main_thread_command = 0
                                         main_thread_data = file_num;
                                         break;
                                 case NEXT_FILE: 
-                                        file_num++;     //TODO: make loop 
+                                        file_num++;             //TODO: 2 byte value
                                         data = 0;               //main_thread_command = 0
                                         main_thread_data = file_num;
                                         break;
@@ -597,23 +589,23 @@ void EXTI1_IRQHandler(void) {
   // Make sure that interrupt flag is set 
   if ((EXTI->PR & EXTI_Line1) != 0) {
         int address = GPIOE->IDR & 0xff;
-        if ((address & 0xfe) == 0x80) {                                 //je to port 80 nebo 81?
+        if ((address & 0xfe) == 0x80) {                                         //is it either port 80 or 81?
                 cmd_active = main_thread_command >> 7;       
                 switch(address){
-                        case (DATA_PORT):                                    //cteme datovy port
-                                switch (main_thread_command & 0x7f){    //zrus status bit
+                        case (DATA_PORT):                                       //data port reading
+                                switch (main_thread_command & 0x7f){            //ignore status bit
                                     case GET_COUNT:
-                                                if (cmd_active) {           //prenos neskoncil                                             
+                                                if (cmd_active) {               //still active?                                             
                                                         data = main_thread_data;
                                                         counter--;
                                                 }
                                                 else {
-                                                        data = 0xff;            //sem by se nemel dostat        
+                                                        data = 0xff;            //shouldn't get here        
                                                 }                
                                                 break;
 
                                     case GET_FILENAME:
-                                                if (cmd_active) {           //prenos neskoncil                                             
+                                                if (cmd_active) {               //still active?                                              
                                                         data = main_thread_data;
                                                         counter++;
                                                         #ifdef ENABLE_SWO
@@ -621,7 +613,7 @@ void EXTI1_IRQHandler(void) {
                                                         #endif
                                                 }
                                                 else {
-                                                        data = 0xff;            //sem by se nemel dostat        
+                                                        data = 0xff;            //shouldn't get here        
                                                 }                
                                                 break;
                                     default:    data = main_thread_data;
@@ -664,13 +656,11 @@ int __attribute__((optimize("O0")))  main(void) {
 	enable_fpu_and_disable_lazy_stacking();
 	init_fpu_regs();
 
-        //register uint32_t main_thread_command_reg asm("r10") __attribute__((unused)) = 0;
 	main_thread_data = 0;
         offset1000 = 0;
 
-
 	rcc_set_frequency(SYSCLK_240_MHZ);
-	  // switch on compensation cell
+	// switch on compensation cell
 	RCC->APB2ENR |= 0 |  RCC_APB2ENR_SYSCFGEN ;
 	SYSCFG->CMPCR |= SYSCFG_CMPCR_CMP_PD; // enable compensation cell
 	while ((SYSCFG->CMPCR & SYSCFG_CMPCR_READY) == 0);  // wait until ready
@@ -730,7 +720,7 @@ int __attribute__((optimize("O0")))  main(void) {
                 menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS ); //(uint16_t *)(CCMRAM_BASE)
         }
         //res = load_binary("debug.bin", (unsigned char *) &high_64k_base+0x8010, 0x1000);
-        res = load_cas("debug.cas", (unsigned char *) &high_64k_base);
+        res = load_cas("debug.cas", (unsigned char *) &high_64k_base, (SORD_HEADER *)&cas_header);
 
 
 char buff[128];
@@ -749,13 +739,13 @@ int length;
                 case GET_COUNT:
               if (!cmd_active)
               {
-                main_thread_command |= 0x80; // nastav aktivni status
+                main_thread_command |= 0x80; //set active status high
                 counter = 1;
               }
               else
               {
                 if (counter < 0)
-                        main_thread_command = 0; // we sent both bytes
+                        main_thread_command = 0; //we sent both bytes
                 else
                         main_thread_data = (uint8_t)(menu_ctrl_file_count >> (8 * counter));
               }
@@ -764,7 +754,7 @@ int length;
                 case SET_INDEX:
               if (!cmd_active)
               {
-                main_thread_command |= 0x80; // nastav aktivni status
+                main_thread_command |= 0x80; //set active status high
                 counter = 2;
                 file_num = 0;
                 main_thread_data = 0;  
@@ -785,7 +775,7 @@ int length;
                         main_thread_command = 0;
                         break;
                 }
-                main_thread_command |= 0x80; // nastav aktivni status
+                main_thread_command |= 0x80; //set active status high
                 length = get_filename((uint8_t *)(CCMRAM_BASE), buff, file_num);
                 counter = 0;
                 break;
@@ -801,7 +791,7 @@ int length;
                 case LOAD_FILE:
               if (!cmd_active)
               {
-                main_thread_command |= 0x80; // nastav aktivni status
+                main_thread_command |= 0x80; //set active status high
                 counter = 2;
                 file_num = 0;
                 main_thread_data = 0;
@@ -817,36 +807,69 @@ int length;
                         strcat(full_filename, buff);
                         if (suffix_match(full_filename, ".rom") || suffix_match(full_filename, ".bin"))
                         {
+                                /* I was thinking setting wait state on the bus is good idea how to stop z80 for a while
+                                but it seems it crashes Sord. Need to be investigated more */
                                 //GPIOC->BSRRH = GPIO_Pin_5; // log. 0 to WAIT
                                 res = load_rom(full_filename, (unsigned char *)&rom_base, &file_size); // high_64k_base+0x9000
                                 //GPIOC->BSRRL = GPIO_Pin_5;       // log. 1 to WAIT
                         }
                         else if (suffix_match(full_filename, ".cas"))
                         {
-                                res = load_cas(full_filename, (unsigned char *)&high_64k_base);
+                                res = load_cas(full_filename, (unsigned char *)&high_64k_base, (SORD_HEADER *)&cas_header);
+
+                                switch (cas_header.Attr) {
+                                        case 1:
+                                        case 3:  //memcpy( (unsigned char *) &rom_base+9, &cas_header.Start, 2);
+                                                 *p_cas_start = cas_header.Start;
+                                                 *p_cas_flag = 2;
+                                                 break;
+                                        #ifdef OTHER_BASICS         
+                                        case 0x20: //BI
+                                                 memcpy((unsigned char *) &high_64k_base + 0x2000,&basic_i, (char *)&basic_i_end - (char *)&basic_i);
+                                                 *p_cas_flag = 3;
+                                                 offset1000 = 1; // 7000h->8000h
+                                                 break;
+                                        case 0x60: //BG    
+                                                 memcpy((unsigned char *) &high_64k_base + 0x2000,&basic_g, (char *)&basic_g_end - (char *)&basic_g); 
+                                                 *p_cas_flag = 3;
+                                                 offset1000 = 1; // 7000h->8000h
+                                                 break;
+                                        case 0x80: //BF
+                                        case 0x82:    
+                                                 memcpy((unsigned char *) &high_64k_base + 0x2000,&basic_f, (char *)&basic_f_end - (char *)&basic_f);
+                                                 *p_cas_flag = 3;
+                                                 offset1000 = 1; // 7000h->8000h 
+                                                 break; 
+                                        #endif                                             
+                                }
+                                 *p_cas_head = cas_header.Head;
+                                 *p_cas_size = cas_header.Size;
+                                 
                         }
+                        #ifdef MODDED_SORD
                         else if (suffix_match(full_filename, ".msx"))
                         {
                                 //GPIOC->BSRRH = GPIO_Pin_5; // log. 0 to WAIT
-                                res = FR_OK; //load_cas(full_filename, (unsigned char *)&high_64k_base);
-                                *(((char*)&rom_base)+6) = 1; //msx load
+                                res = load_cas(full_filename, (unsigned char *)&high_64k_base,   (SORD_HEADER *)&cas_header);
                                 
                                 if (res == FR_OK)
                                 {
                                         memcpy(&high_64k_base,&msx, 0x8000);
+                                        *p_cas_start = cas_header.Start;
+                                        *p_cas_flag = 1; //MSX
                                         offset1000 = 1; // 7000h->8000h
                                         main_thread_data = 0;
                                 }
                                 else
-                                        main_thread_data = 0xff; // byla chyba nahravani romky
+                                        main_thread_data = 0xff; // error status during file read
                         }
-
+                        #endif
                         if (res == FR_OK)
                         {
                                 main_thread_data = 0;
                         }
                         else
-                                main_thread_data = 0xff; // byla chyba nahravani romky
+                                main_thread_data = 0xff; // error status during file read
                         main_thread_command = 0;         // we received both bytes and rom loaded
                         //GPIOC->BSRRL = GPIO_Pin_5;       // log. 1 to WAIT
                 }
@@ -855,7 +878,7 @@ int length;
                 case DIR_SORD:
               if (!cmd_active)
               {
-                main_thread_command |= 0x80; // nastav aktivni status
+                main_thread_command |= 0x80; //set active status high
                 res = f_opendir(&dir, root_directory);
 
                 if (res == FR_OK)
@@ -916,11 +939,11 @@ int length;
 
                 if ((mem_mode & 0xf) == 0 || (mem_mode & 0xf) == 2 || (mem_mode & 0xf) == 5 || (mem_mode & 0xf) == 6)
                 {
-                        GPIOA->BSRRL = 0x02; // zhasni ledku
+                        GPIOA->BSRRL = 0x02; // LED OFF
                 }
                 else
                 {
-                        GPIOA->BSRRH = 0x02; // rozsvit ledku
+                        GPIOA->BSRRH = 0x02; // LED ON
                 }
         }
 }

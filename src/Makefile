@@ -55,6 +55,12 @@ CFLAGS += -ffixed-s9
 CFLAGS += -ffixed-s10 -ffixed-s11 -ffixed-s12 -ffixed-s13 -ffixed-s14 -ffixed-s15 -ffixed-s16 -ffixed-s17 -ffixed-s18 -ffixed-s19 -ffixed-s20
 CFLAGS += -ffixed-s21 -ffixed-s22 -ffixed-s23 -ffixed-s24 -ffixed-s25 -ffixed-s26 -ffixed-s27 -ffixed-s28 -ffixed-s29 -ffixed-s30 -ffixed-s31
 
+#this will include msx bios inside firmware, if you have vanilla SORD disable it, it save some space
+CFLAGS += -DMODDED_SORD
+
+#this will include as well bi,bg roms inside firmware, in present time it is not implemented to load Basic programs. So it can be disabled now
+#CFLAGS += -DOTHER_BASICS
+
 #CFLAGS += -DENABLE_SWO #debug swo, board must be in debugging mode oherwise it won't boot up if enabled, pozor kdyz povoleno r12 se nastavi jinak, proto nefunguji ostatni non-swo debugy!
 
 #CFLAGS += -DDEBUG_SWO_WRITE					
@@ -93,11 +99,12 @@ OBJS = $(SRCS:.c=.o)
 
 vpath %.c $(STM_COMMON)/Libraries/STM32F4xx_StdPeriph_Driver/src $(STM_COMMON)/Utilities/STM32F4-Discovery
 
-.PHONY: proj
+.PHONY: proj menu
 
 all: proj
 
 proj: $(PROJ_NAME).elf
+menu: menu.rom
 
 $(PROJ_NAME).elf: $(SRCS)
 	$(CC) $(CFLAGS) $^ -o $@ 
@@ -114,6 +121,14 @@ clean:
 stlink:
 #attaches stlink from host win to wsl
 	usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
-# Flash the STM32F4
+
+# Flash the STM32F4 via stlink dongle
 burn:
 	st-flash write $(PROJ_NAME).bin 0x8000000
+
+# Flash the STM32F4 via dfu
+dfu-burn:
+	sudo dfu-util -v -d 0483:df11 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
+
+menu.rom:
+	pasmo -v --equ ROM=1 menu/menu.asm menu/menu.rom 

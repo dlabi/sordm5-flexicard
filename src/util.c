@@ -32,8 +32,9 @@ void blink_pa1(int n) {
 void reset_sord(int delay) {
 		return;
 		/*
-		takhle to nejde protoze na rst pin je zapojen vystup inventoru a vznikal by hazard.
-		je treba udelat to tak ze pri cteni kontrolovane oblasti pameti budeme posilat instrukci rst0 dokud nedojde k resetu
+		unfortunately didn't find way how to reset Sord programmatically
+		below code isn't possible as the rst pin is connected to the inventor output what could potentially causing signal hazard.
+		only way could be inject rst0 instruction when z80 asking for instruction from memory area we control
 		GPIOB->BSRRH = GPIO_Pin_10;                // ground PB10 -> reset
 		GPIOB->MODER |= GPIO_MODER_MODER10_0;      // PB10 - as output
 		delay_ms(delay);
@@ -119,7 +120,7 @@ FRESULT load_binary(char *fname, unsigned char* buffer, int size) {
 	return res;
 }
 
-FRESULT load_cas(char *fname, unsigned char* buffer) {
+FRESULT load_cas(char *fname, unsigned char* buffer, SORD_HEADER* cas_header) {
 	FRESULT res;
     FIL     fil;
     UINT BytesRead, length, offset;
@@ -148,17 +149,7 @@ FRESULT load_cas(char *fname, unsigned char* buffer) {
 			length = (UINT)*tmp + 1;
 			res |= f_read(&fil, &sord_header,sizeof(sord_header), &BytesRead);
 			if (BytesRead != length  || res != FR_OK) {res = -1; break;}
-			if ((sord_header.Attr & 2) == 2 || (suffix_match(fname, ".msx"))) {
-				memcpy( (unsigned char *) &rom_base+9,&sord_header.Start, 2); // autostart do rst5 vektoru
-				if (suffix_match(fname, ".msx")) {
-					*(((char*)&rom_base)+6) = 1;
-				}
-				else 
-				{
-				*(((char*)&rom_base)+6) = 2;
-				}
-			}
-			else { *(((char*)&rom_base)+6) = 0;}
+			*cas_header = sord_header;
 			offset = 0;
 			while (*(f_gets((TCHAR *)byte,2,&fil))!='H' && !f_eof(&fil) )
 			{
