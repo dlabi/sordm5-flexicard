@@ -719,7 +719,6 @@ int __attribute__((optimize("O0")))  main(void) {
                 }
                 menu_ctrl_file_count = load_directory(root_directory, (uint8_t *)(CCMRAM_BASE), MENU_MAX_DIRECTORY_ITEMS ); //(uint16_t *)(CCMRAM_BASE)
         }
-        //res = load_binary("debug.bin", (unsigned char *) &high_64k_base+0x8010, 0x1000);
         res = load_cas("debug.cas", (unsigned char *) &high_64k_base, (SORD_HEADER *)&cas_header);
 
 

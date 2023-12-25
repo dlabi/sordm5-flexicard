@@ -20,13 +20,13 @@ void delay_ms(const uint16_t ms)
 
 void blink_pa1(int n) {
         while(n) {
-                GPIOA->BSRRH = 0x02; // rozsvit ledku
+                GPIOA->BSRRH = 0x02; // LED ON
                 delay_ms(50);
-				GPIOA->BSRRL = 0x02; // zhasni ledku
+				GPIOA->BSRRL = 0x02; // LED OFF
                 delay_ms(50);
                 n--;
         }
-		GPIOA->BSRRL = 0x02; // zhasni ledku
+		GPIOA->BSRRL = 0x02; // LED OFF
 }
 
 void reset_sord(int delay) {
@@ -83,9 +83,9 @@ FRESULT load_rom(char *fname, unsigned char* buffer, unsigned int* file_size) {
 
 	if (res == FR_OK) {
 /*
-00 - 8K ROM OD ADRESY 2000H
-01 - 8K ROM OD ADRESY 4000H
-02 - 16K ROM OD ADRESY 2000H
+00 - 8K ROM FROM 2000H
+01 - 8K ROM FROM 4000H
+02 - 16K ROM FROM 2000H
 */
 		res = f_read(&fil,buffer, 0x5000, &BytesRead);
 		if (res == FR_OK) {
