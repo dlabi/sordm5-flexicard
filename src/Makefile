@@ -1,4 +1,4 @@
-SRCS=main.c system_stm32f4xx.c util.c
+SRCS=main.c system_stm32f4xx.c util.c init.c
 
 # Library modules
 SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_sdio.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_pwr.c 
@@ -78,6 +78,7 @@ CFLAGS += -I$(STM_COMMON)/Libraries/CMSIS/ST/STM32F4xx/Include
 CFLAGS += -I$(STM_COMMON)/Libraries/STM32F4xx_StdPeriph_Driver/inc
 # add git hash 
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2> /dev/null || true)
+BUILD	   := $(shell date '+%y%m%d%H%M')
 LDFLAGS := -X version=${GIT_COMMIT} ${LDFLAGS}
 
 # add startup file to build
@@ -97,7 +98,7 @@ proj: $(PROJ_NAME).elf
 menu: menu.rom
 
 $(PROJ_NAME).elf: $(SRCS)
-	$(CC) $(CFLAGS) $^ -o $@ 
+	$(CC) -D_BUILD_=$(BUILD) $(CFLAGS) $^ -o $@ 
 	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	$(OBJDUMP) -dS $(PROJ_NAME).elf >$(PROJ_NAME).asm
