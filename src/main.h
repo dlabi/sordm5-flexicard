@@ -6,6 +6,12 @@ extern volatile uint8_t *high_64k_base;
 extern volatile uint8_t *low_64k_base;
 extern volatile uint8_t *basic_f;
 extern volatile uint8_t *basic_f_end;
+extern volatile uint8_t main_thread_command;
+extern volatile uint8_t main_thread_data;
+extern volatile uint8_t mem_mode;
+extern volatile uint8_t offset1000;
+extern volatile uint8_t rst5;
+extern volatile uint32_t menu_ctrl_file_count;
 
 
 #ifdef OTHER_BASICS 
@@ -52,13 +58,6 @@ extern volatile uint8_t *msx_end;
             fno.lfsize = sizeof lfn;
 #endif
 
-// Must be volatile to prevent optimiser doing stuff
-extern volatile uint8_t main_thread_command;
-extern volatile uint8_t main_thread_data;
-extern volatile uint8_t mem_mode;
-extern volatile uint8_t offset1000;
-extern volatile uint8_t rst5;
-extern volatile uint32_t menu_ctrl_file_count;
 
 #endif
 

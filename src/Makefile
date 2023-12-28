@@ -78,8 +78,9 @@ CFLAGS += -I$(STM_COMMON)/Libraries/CMSIS/ST/STM32F4xx/Include
 CFLAGS += -I$(STM_COMMON)/Libraries/STM32F4xx_StdPeriph_Driver/inc
 # add git hash 
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2> /dev/null || true)
-BUILD	   := $(shell date '+%y%m%d%H%M')
-LDFLAGS := -X version=${GIT_COMMIT} ${LDFLAGS}
+BUILD	   := $(shell git describe 2> /dev/null || true)
+DATE	   := $(shell date '+%y%m%d%H%M')
+LDFLAGS := -X version=${BUILD} -X timestamp=${DATE} ${LDFLAGS}
 
 # add startup file to build
 SRCS += startup_stm32f4xx.S 
@@ -98,7 +99,7 @@ proj: $(PROJ_NAME).elf
 menu: menu.rom
 
 $(PROJ_NAME).elf: $(SRCS)
-	$(CC) -D_BUILD_=$(BUILD) $(CFLAGS) $^ -o $@ 
+	$(CC) -D_BUILD_=\"$(BUILD)\" $(CFLAGS) $^ -o $@ 
 	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	$(OBJDUMP) -dS $(PROJ_NAME).elf >$(PROJ_NAME).asm
@@ -114,11 +115,11 @@ stlink:
 	usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
 
 # Flash the STM32F4 via stlink dongle
-burn:
+flash:
 	st-flash write $(PROJ_NAME).bin 0x8000000
 
 # Flash the STM32F4 via dfu
-dfu-burn:
+flash-dfu:
 	sudo dfu-util -v -d 0483:df11 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
 
 # builds menu.rom using pasmo cross assembler

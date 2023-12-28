@@ -1,5 +1,3 @@
-#include "ver.h"
-
 	.syntax unified
 	.cpu cortex-m4
 //	.fpu softvfp
@@ -10,7 +8,6 @@
 .section .rodata
 #include "definitions.S"
 #include "macros.S"
-
 
 	.global EXTI0_IRQHandler
 	.global EXTI4_IRQHandler
@@ -75,64 +72,9 @@ rom_base:
 
 .section ccmram
 low_64k_base:
-//used as buffer for file list from SD card
-// low_64k_base consumes the entire 64K CCMRAM . Look in stm32_flash.ld for where the global symbol is defined
-//.lcomm low_64k_base,0x10000  
 
 .section .bss
         .lcomm high_64k_base,0x10000                
-
-//                        WIRING TABLE
-//
-//* signs used in sw
-// BLACK BOARD MAXI           SIGNAL        MINI FlexiCard v1.0
-
-// rewired from PB14   *PB0  - IOWR     -  *PB0
-// rewired from PB13   *PB1  - IORD     -  *PB1       
-// removed due to swo   PB3  - RFSH     -  *PC1  
-//                      PB5  - WAIT     -  *PC5
-//                      PB6  - EXINT    -
-//                      PB7  - EXCLK    -
-//                      PB8  - EXIOA    -        
-//                      PB9  - EXIOB    -        
-//                    *PB10  - RST      -  *PB10                       
-//                    *PB11  - MRD      -  *PC3 
-//                    *PB12  - MWR      -  *PC2      
-//                     PB15  - ROMDS    -  *PC13
-//                     *PC0  - ROM0     -  *PC0
-//                      PC1  - ROM1	-          
-//                      PC2  - ROM2	-          
-//                      PC3  - EXM      -  
-//                     *PC4  - MRQ      -  *PC4       
-//                     PC13  - CLK      -  PC6      
-
-// data & address bus
-//                *PD8-PD15  - D0..D7   -  *PD8-PD15  
-//                *PE0-PE15  - A0..A15  -  *PE0-PE15
-
-// used by FLASH
-//                    PC11   - /CS      -  PA15 
-//                     PD2   - MOSI     -  PB5
-//                    PC12   - SCK      -  PB3 
-//                     PC8   - MISO     -  PB4
-
-// used by SWD
-//                     PA13  - SWDIO    -  PA13
-//                     PA14  - SWCLK    -  PA14
-//                      PB3  - SWO      -  PB3   isn't available at header connector
-
-// user LEDS
-//                      PA6  - LED1     -  PA1
-//                      PA7  - LED2     -
-// used by SD
-//                      PC10 - DAT2     -  PC10
-//                      PC11 - DAT3     -  PC11
-//                       PD2 - CMD      -  PD2
-//                      PC12 - CLK      -  PC12
-//                       PC8 - DAT0     -  PC8
-//                       PC9 - DAT1     -  PC9
-
-//*PA0-PA3 is a debug output for hooking up to a logic analyser to check timings, but is not connected normally
 
 .section .text
 

@@ -10,6 +10,16 @@
 #include "diskio.h"
 #include "ver.h"
 
+
+//is defined in the Makefile
+#ifndef _BUILD_
+  #define _BUILD_ "no_build"
+#endif
+//used for binary identification
+const char *ver = _VER_;
+const char *build = _BUILD_;
+const char *compiled = "compiled: " __DATE__ "-" __TIME__;
+
 // FATFS stuff
 FATFS fs32;
 
