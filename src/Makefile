@@ -78,7 +78,7 @@ CFLAGS += -I$(STM_COMMON)/Libraries/CMSIS/ST/STM32F4xx/Include
 CFLAGS += -I$(STM_COMMON)/Libraries/STM32F4xx_StdPeriph_Driver/inc
 # add git hash 
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2> /dev/null || true)
-BUILD	   := $(shell git describe 2> /dev/null || true)
+BUILD	   := $(shell git describe --tags --abbrev=8 --dirty --always --long 2> /dev/null || true)
 DATE	   := $(shell date '+%y%m%d%H%M')
 LDFLAGS := -X version=${BUILD} -X timestamp=${DATE} ${LDFLAGS}
 
