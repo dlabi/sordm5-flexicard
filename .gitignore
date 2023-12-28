@@ -16,3 +16,4 @@ interrupt.asm
 menu.rom
 menu.lst
 platformio.ini
+cmsis-svd
