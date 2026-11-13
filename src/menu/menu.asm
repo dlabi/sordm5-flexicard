@@ -12,6 +12,7 @@ RESET_SORD      EQU 9
 DIR_SORD        EQU 10
 OFFSET_RAM_ON   EQU 11
 OFFSET_RAM_OFF  EQU 12
+COMMIT_ROM      EQU 13
 
 DATA_PORT       EQU 80H
 CMD_PORT        EQU 81H
@@ -34,14 +35,15 @@ BEL             EQU 1176H
 MLTAL           EQU 1441H ; HL=A*L 	
 IPL             EQU TO_RET
 NUMFILES        EQU 7800H
-BUFFER          EQU 7801H ;buffer for filename transfer
+BUFFER          EQU 7802H ;buffer for filename transfer
 RST4JMP         EQU TO_RET
 RST5JMP         EQU 0
 AUTOSTART       EQU 2009h
 FLAG            EQU 200Bh
 HEAD:           EQU 200Ch
 SIZE:           EQU 200Eh
-STACK           EQU 0ff00h 
+STACK           EQU 07300h
+ROM_LAUNCH_RAM  EQU 07E00h
 DEBUG           EQU 9010h ; debug program e.g. from debug.cas
 
 CMD     MACRO X
@@ -79,9 +81,8 @@ BEGIN:
         call TEXTMODE
         call BEL
 start:  CMD DIR_SORD
-w1:     in a,(CMD_PORT)
-        bit ACTIVE,a
-        jr nz, w1               ; wait active goes down
+        call WAIT_IDLE
+        jp c, directory_error
         CMD GET_COUNT
         ;DELAY 20
         in a, (DATA_PORT)       ; higher byte
@@ -106,9 +107,6 @@ newpage:
         ld l, MAXLINES + 1
         call MLTAL              ; HL=L*A
         CMD SET_INDEX           ; set index of the first file on the page
-w2:     in a,(CMD_PORT)
-        bit ACTIVE,a
-        jr z, w2                ; wait for active bit
         ld c, DATA_PORT         ; ready to set the index
         out (c),h
         DELAY 10
@@ -242,6 +240,15 @@ index:   sub 61H
          ld b,0
          ld c,a
          add hl, bc             ; page * maxlines + index
+         push hl
+         ld de,(NUMFILES)
+         or a
+         sbc hl,de
+         pop hl
+         jr c, valid_selection
+         pop bc
+         jp waitkey             ; empty slot on the final page
+valid_selection:
          di
          CMD LOAD_FILE           ;destroys reg a
          ld c, DATA_PORT
@@ -249,90 +256,147 @@ index:   sub 61H
          DELAY 13
          out (c),l              ;send lower byte
          DELAY 13
-w:       in a,(CMD_PORT)
-         cp LOAD_FILE or 80H    ; are we ready?
-         jr z, w
+         call WAIT_IDLE
          pop bc
          ei
-         DELAY 13    
-         in a,(DATA_PORT)       ; load status 0 = OK FF=KO
+         jr nc, load_result
+         ld a,0ffh             ; distinguish timeout from FatFs errors
+         jr report_error
+load_result:
+         in a,(DATA_PORT)       ; 0=OK, otherwise FatFs FRESULT
          or a
-         jp z, fileready
+         jr z, fileready
+report_error:
+         push bc
+         push af
          ld hl, loaderror 
          call DSPLTB
+         pop af
+         ld c,a
+         call OUTHEX
+         pop bc
          jp waitkey
 fileready:
-         ld a, (FLAG)         ; read extra status
-         cp 1                 ; MSX
-         jr z, msx
-         cp 2                 ; cas with autostart loaded 
-         jr nz, nextcheck
-         ld hl, HEAD
-         ld a, (HL)
-         bit 7, A
-         jr z, need_copy        ;program starts in internal ram, needs to be copied there first
-         rst 28h
-nextcheck: cp 3
-         jp z, basic        
-         jp waitkey
+         ld a,(FLAG)
+         cp 4
+         jp z, launch_rom
+         cp 1
+         jp z, msx
+         cp 2
+         jp nz, waitkey
 
-need_copy:
-        CMD OFFSET_RAM_ON
-        di
-        LD SP,STACK
-        ld hl,8300h
-        ld de,7300h
-        ld bc,1000h - 300h
-        ;ld hl,HEAD+1000h
-        ;ld de,HEAD
-        ;ld bc,SIZE
-        ;bit 7,d
-        ;jr nz, done1              ;we are outside of internal ram 
-        ldir
- done1:
-        ei
-        CMD OFFSET_RAM_OFF
-        ;call 9010h
-        rst 28h
+         ; Autostart machine code. Stack grows below the supported payload area.
+         di
+         ld sp,STACK
+         ld hl,(AUTOSTART)
+         push hl
+         ld de,(HEAD)
+         bit 7,d
+         jr nz, cas_start       ; destination starts in expansion RAM
+         CMD OFFSET_RAM_ON
+         ld hl,1000h
+         add hl,de              ; access the shadow of internal RAM at +1000h
+         ld bc,(SIZE)
+cas_copy:
+         ld a,(hl)
+         ld (de),a
+         inc hl
+         inc de
+         dec bc
+         ld a,b
+         or c
+         jr z, cas_copy_done
+         bit 7,d
+         jr z, cas_copy         ; stop at 8000h; remaining data is already mapped
+cas_copy_done:
+         CMD OFFSET_RAM_OFF
+cas_start:
+         pop hl
+         ei
+         jp (hl)
+
+launch_rom:
+         di
+         ld hl,rom_launch_stub
+         ld de,ROM_LAUNCH_RAM
+         ld bc,rom_launch_end-rom_launch_stub
+         ldir
+         jp ROM_LAUNCH_RAM
+
+; Relative branches remain valid after copying this code into internal RAM.
+; COMMIT_ROM never accesses SD: it only copies the already validated image.
+rom_launch_stub:
+         ld sp,07DF0h
+         ld a,COMMIT_ROM
+         out (CMD_PORT),a
+         DELAY 17
+rom_commit_wait:
+         in a,(CMD_PORT)
+         bit ACTIVE,a
+         jr nz,rom_commit_wait
+         in a,(DATA_PORT)
+         or a
+         jp z,0000h             ; let the monitor initialize the new cartridge
+         ei
+         jp start               ; rejected commit leaves the old menu intact
+rom_launch_end:
+
+; Bounded wait for SD work. Carry reports a timeout; BREAK cancels the request.
+WAIT_IDLE:
+         push bc
+         push de
+         ld b,16
+         ld de,0
+wait_idle_poll:
+         in a,(CMD_PORT)
+         bit ACTIVE,a
+         jr z,wait_idle_ready
+         dec de
+         ld a,d
+         or e
+         jr nz,wait_idle_poll
+         djnz wait_idle_poll
+         ld a,BREAK
+         out (CMD_PORT),a
+         scf
+         jr wait_idle_exit
+wait_idle_ready:
+         or a
+wait_idle_exit:
+         pop de
+         pop bc
+         ret
+
+directory_error:
+         ld hl,loaderror
+         call DSPLTB
+         call ACECHI
+         jp start
 
 msx:    di
-        LD SP,STACK         
+        ld sp,STACK
+        ; Install the five-byte switch outside both BIOS and game payload.
+        ld hl,msx_switch_stub
+        ld de,(HEAD)
+        ld bc,msx_switch_end-msx_switch_stub
+        ldir
         ld hl,8000h
         ld de,7000h
         ld bc,1000h
         ldir
-        CMD OFFSET_RAM_OFF      ; offset cancel
+        ; The copied BIOS now owns 7000h-7fffh: no CALL/PUSH from here.
+        ld a,OFFSET_RAM_OFF
+        out (CMD_PORT),a
         ld hl,(AUTOSTART)
-        ld (7cf1h), hl ; patch msx init routine to game start address
+        ld (7cf1h),hl           ; original game autostart
         ld a,1
-        ld (8000h),a ; msx scans for free memory by writing some data which overwrittes our game, 
-                     ; so if we pretend "something" is from 8000h it stops right there. For game from 8000h
-                     ; we loose first byte :-( 
-        out (30h),a     ; disable roms
-        rst 0
-
-basic:
-        di
+        ld (8000h),a            ; original BIOS RAM-probe sentinel
         ld hl,(HEAD)
-        ld bc, 1000h
-        add hl,bc
-        ld de,(HEAD)
-        ld bc,(SIZE)
-        push de
-        push bc
-        ldir
-        CMD OFFSET_RAM_OFF ; disable offset 
-        pop bc
-        pop de
-        ld (726ah), de
-        ld ix, (HEAD)
-        add ix, bc
-        ld (726ch),ix
-        ld (726eh),ix
-        ld a, 2            ; disable Cartridge, MONITOR keeps     
+        jp (hl)
+msx_switch_stub:
         out (30h),a
-        rst 0
-
+        jp 0
+msx_switch_end:
 
 OUTHEX:
 ; Input: c
@@ -395,10 +459,13 @@ FOOTER:
         pop hl
         ret
 
-head:           db "FLEXI CARD MENU v0.8 A.Dlabac 23/12/25\r", 0
+head:           db "FLEXI CARD MENU v0.19 A.Dlabac 13/11/26\r", 0
 nofiles:        db "NO FILES FOUND :-(", 0
-loaderror:      db "ERROR LOADING ROM", 0
+loaderror:      db "ERROR LOADING ROM ", 0
 page:           db "PAGE ", 0
 foot:           db " use <- or -> for page change", 0
 
-
+IF ROM
+        defs 6ff0h-$,0ffh
+        defs 8,0
+ENDIF

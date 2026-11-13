@@ -1,4 +1,6 @@
-SRCS=main.c system_stm32f4xx.c util.c init.c
+.DELETE_ON_ERROR:
+
+SRCS=main.c system_stm32f4xx.c util.c images.c loader.c protocol.c init.c
 
 # Library modules
 SRCS += stm32f4xx_syscfg.c misc.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_sdio.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_pwr.c 
@@ -11,16 +13,17 @@ PROJ_NAME=interrupt
 
 #######################################################################################
 # Modify STM_COMMON where your STM32F4DISCOVERY firmare package is
-STM_COMMON=/mnt/d/_DATA/Sord/stm32f407vet6/STM32F4-Discovery_FW_V1.1.0
+STM_COMMON=/mnt/d/Sord/stm32f407vet6/STM32F4-Discovery_FW_V1.1.0
 
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 OBJDUMP=arm-none-eabi-objdump
-HEX2DFU=./hex2dfu
+HEX2DFU=../tools/hex2dfu
+PYTHON ?= python3
 
 #CFLAGS  = -g -O2 -Wall -Tstm32_flash.ld 
 CFLAGS  = -g -O0 -Wall -Tstm32_flash.ld -ffunction-sections -fdata-sections -fomit-frame-pointer
-CFLAGS += -DUSE_STDPERIPH_DRIVER
+CFLAGS += -DUSE_STDPERIPH_DRIVER -DSTM32F40_41xxx
 CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 #-mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -I.
@@ -98,12 +101,14 @@ all: proj
 proj: $(PROJ_NAME).elf
 menu: menu.rom
 
-$(PROJ_NAME).elf: $(SRCS)
-	$(CC) -D_BUILD_=\"$(BUILD)\" $(CFLAGS) $^ -o $@ 
+$(PROJ_NAME).elf: $(SRCS) $(wildcard *.h) Makefile stm32_flash.ld definitions.S macros.S ../tools/check_reserved_fpu.py
+	$(CC) -D_BUILD_=\"$(BUILD)\" $(CFLAGS) $(filter %.c %.S,$^) -o $@
+	$(PYTHON) ../tools/check_reserved_fpu.py --objdump "$(OBJDUMP)" $@
 	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	$(OBJDUMP) -dS $(PROJ_NAME).elf >$(PROJ_NAME).asm
 	$(HEX2DFU) -i $(PROJ_NAME).hex -o $(PROJ_NAME).dfu -d ${GIT_COMMIT}
+
 clean:
 	rm -f *.o
 	rm -f $(PROJ_NAME).elf
@@ -112,7 +117,7 @@ clean:
 
 #attaches stlink from host win to wsl
 stlink:
-	usbipd.exe wsl attach -d Ubuntu-20.04 -i 0483:3748
+	usbipd.exe attach --wsl Ubuntu-20.04 -i 0483:3748
 
 # Flash the STM32F4 via stlink dongle
 flash:
@@ -120,8 +125,10 @@ flash:
 
 # Flash the STM32F4 via dfu
 flash-dfu:
-	sudo dfu-util -v -d 0483:df11 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
+	sudo dfu-util -v -d 0483:3748 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
 
 # builds menu.rom using pasmo cross assembler
-menu.rom:
-	pasmo -v --equ ROM=1 menu/menu.asm menu/menu.rom 
+menu.rom: menu/menu.rom
+
+menu/menu.rom: menu/menu.asm
+	pasmo -v --equ ROM=1 menu/menu.asm menu/menu.rom menu/menu.sym

@@ -20,6 +20,7 @@
         .global basic_g_end
         .global basic_i_end
         .global msx
+        .global msx_end
         .global low_64k_base
 	.global high_64k_base
 	.global main_thread_command
@@ -56,12 +57,14 @@ main_thread_command:
 	.byte	0x00			// command byte
 main_thread_data:
 	.byte	0x00			// command arg
+        .balign 4
 menu_ctrl_file_count:
         .word   0x00000000
 mem_mode:
         .byte   0x00                    // memory mode
 offset1000:
         .byte   0x00                    //non zero value offsets high_64k_base by +1000h to allow read 7000-7fff region at 8000-8fff
+	.balign 4
 debug_var1:
 	.word	0x00000000
  
@@ -69,6 +72,12 @@ debug_var1:
 //this part of ram is used for simulating rom area, by default basic-f is here
 rom_base:
 .incbin "../roms/basic-f.rom"
+        .if (basic_f_end - basic_f) < 0x5000
+        .space 0x5000 - (basic_f_end - basic_f), 0xff
+        .endif
+        .if (basic_f_end - basic_f) > 0x5000
+        .error "BASIC-F exceeds the cartridge buffer"
+        .endif
 
 .section ccmram
 low_64k_base:

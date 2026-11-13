@@ -313,6 +313,8 @@
 #define SD_CARD_LOCKED                  ((uint32_t)0x02000000)
 
 #define SD_DATATIMEOUT                  ((uint32_t)0xFFFFFFFF)
+/* Software polling has its own finite budget; do not reuse the SDIO timer. */
+#define SD_SOFTWARE_TIMEOUT            ((uint32_t)0x01000000)
 #define SD_0TO7BITS                     ((uint32_t)0x000000FF)
 #define SD_8TO15BITS                    ((uint32_t)0x0000FF00)
 #define SD_16TO23BITS                   ((uint32_t)0x00FF0000)
@@ -1491,35 +1493,53 @@ SD_Error SD_ReadMultiBlocksFIXED(uint8_t *readbuff, uint32_t ReadAddr, uint32_t 
   * @param  None.
   * @retval SD_Error: SD Card Error code.
   */
+/* Stop DMA before returning an error: FIL buffers may live on the caller's stack. */
+static SD_Error SD_AbortTransfer(SD_Error error)
+{
+  SDIO_DMACmd(DISABLE);
+  DMA_Cmd(SD_SDIO_DMA_STREAM, DISABLE);
+  SDIO->DCTRL = 0;
+  SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND |
+                SDIO_IT_TXFIFOHE | SDIO_IT_RXFIFOHF | SDIO_IT_TXUNDERR |
+                SDIO_IT_RXOVERR | SDIO_IT_STBITERR, DISABLE);
+  if (StopCondition == 1) SD_StopTransfer();
+  SDIO_ClearFlag(SDIO_STATIC_FLAGS);
+  DMAEndOfTransfer = 0;
+  TransferError = error;
+  return error;
+}
+
 SD_Error SD_WaitReadOperation(void)
 {
   SD_Error errorstatus = SD_OK;
   uint32_t timeout;
 
-  timeout = SD_DATATIMEOUT;
+  timeout = SD_SOFTWARE_TIMEOUT;
 
   while ((DMAEndOfTransfer == 0x00) && (TransferEnd == 0) && (TransferError == SD_OK) && (timeout > 0))
   {
     timeout--;
   }
 
+  if (!timeout || TransferError != SD_OK)
+  {
+    return SD_AbortTransfer(TransferError == SD_OK ? SD_DATA_TIMEOUT : TransferError);
+  }
+
   DMAEndOfTransfer = 0x00;
 
-  timeout = SD_DATATIMEOUT;
+  timeout = SD_SOFTWARE_TIMEOUT;
 
   while(((SDIO->STA & SDIO_FLAG_RXACT)) && (timeout > 0))
   {
     timeout--;
   }
 
+  if (!timeout) return SD_AbortTransfer(SD_DATA_TIMEOUT);
+
   if (StopCondition == 1)
   {
     errorstatus = SD_StopTransfer();
-  }
-
-  if ((timeout == 0) && (errorstatus == SD_OK))
-  {
-    errorstatus = SD_DATA_TIMEOUT;
   }
 
   /*!< Clear all the static flags */
@@ -1883,30 +1903,32 @@ SD_Error SD_WaitWriteOperation(void)
   SD_Error errorstatus = SD_OK;
   uint32_t timeout;
 
-  timeout = SD_DATATIMEOUT;
+  timeout = SD_SOFTWARE_TIMEOUT;
 
   while ((DMAEndOfTransfer == 0x00) && (TransferEnd == 0) && (TransferError == SD_OK) && (timeout > 0))
   {
     timeout--;
   }
 
+  if (!timeout || TransferError != SD_OK)
+  {
+    return SD_AbortTransfer(TransferError == SD_OK ? SD_DATA_TIMEOUT : TransferError);
+  }
+
   DMAEndOfTransfer = 0x00;
 
-  timeout = SD_DATATIMEOUT;
+  timeout = SD_SOFTWARE_TIMEOUT;
 
   while(((SDIO->STA & SDIO_FLAG_TXACT)) && (timeout > 0))
   {
     timeout--;
   }
 
+  if (!timeout) return SD_AbortTransfer(SD_DATA_TIMEOUT);
+
   if (StopCondition == 1)
   {
     errorstatus = SD_StopTransfer();
-  }
-
-  if ((timeout == 0) && (errorstatus == SD_OK))
-  {
-    errorstatus = SD_DATA_TIMEOUT;
   }
 
   /*!< Clear all the static flags */

@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include "stm32f4xx.h"
 
 #include "ff.h"
 #include "main.h"
@@ -45,8 +44,8 @@ FRESULT load_cas(char *fname, unsigned char* buffer, SORD_HEADER* cas_header);
 // void load_rom_and_grom_and_disk_name(char *app_directory, unsigned char*rom_buffer, unsigned char *grom_buffer, DSK *dsk);
 
 uint32_t load_directory(char *dirname, uint8_t *index_buffer, uint32_t max_files);
-uint8_t get_filename(uint8_t *index_buffer, char *buffer, int file_num );
-void send_files(uint32_t file_number, uint16_t *index_buffer );
+uint8_t get_filename(const uint8_t *index_buffer, char *buffer,
+                     uint32_t file_num, uint32_t file_count);
 void reset_sord(int delay);
 void my_memcpy(unsigned char *dest, unsigned char *from, int length);
 

@@ -1,11 +1,13 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-extern volatile uint8_t *rom_base;
-extern volatile uint8_t *high_64k_base;
-extern volatile uint8_t *low_64k_base;
-extern volatile uint8_t *basic_f;
-extern volatile uint8_t *basic_f_end;
+#include <stdint.h>
+
+/* These are storage labels supplied by interrupt.S, not pointer variables. */
+extern uint8_t rom_base[];
+extern uint8_t high_64k_base[];
+extern uint8_t low_64k_base[];
+extern const uint8_t basic_f[], basic_f_end[];
 extern volatile uint8_t main_thread_command;
 extern volatile uint8_t main_thread_data;
 extern volatile uint8_t mem_mode;
@@ -15,15 +17,12 @@ extern volatile uint32_t menu_ctrl_file_count;
 
 
 #ifdef OTHER_BASICS 
-extern volatile uint8_t *basic_i;
-extern volatile uint8_t *basic_i_end;
-extern volatile uint8_t *basic_g;
-extern volatile uint8_t *basic_g_end;
+extern const uint8_t basic_i[], basic_i_end[];
+extern const uint8_t basic_g[], basic_g_end[];
 #endif
 
 #ifdef MODDED_SORD
-extern volatile uint8_t *msx;
-extern volatile uint8_t *msx_end;
+extern const uint8_t msx[], msx_end[];
 #endif
 
 
@@ -31,6 +30,11 @@ extern volatile uint8_t *msx_end;
 #define	DATA_IN_MODE	0x00000020
 #define MENU_MAX_DIRECTORY_ITEMS	500 //1024 jinak musim zmensit max delku jmena souboru ze 128 na 64
 #define CCMRAM_BASE	0x10000000
+#define DIRECTORY_NAME_SIZE 128u
+#define ROM_CAPACITY 0x5000u
+#define SORD_MEMORY_SIZE 0x10000u
+#define ROM_STAGE_ADDRESS 0x2000u
+#define MSX_LAUNCH_SIZE 5u /* OUT (30h),A; JP 0, outside BIOS/game payload. */
 
 // FLEXI CARD PORTS
 #define DATA_PORT       0x80
@@ -50,13 +54,7 @@ extern volatile uint8_t *msx_end;
 #define DIR_SORD        10
 #define OFFSET_RAM_ON   11
 #define OFFSET_RAM_OFF  12
-
-
-#if _USE_LFN
-    static char lfn[_MAX_LFN + 1];
-        fno.lfname = lfn;
-            fno.lfsize = sizeof lfn;
-#endif
+#define COMMIT_ROM      13
 
 
 #endif
