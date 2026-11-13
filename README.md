@@ -6,7 +6,7 @@ A multipurpose card that emulates ROM and RAM. The ROM content is loaded from th
 Introduction
 ------------
 
-Flexi card (hereinafter FC) would probably never have been created if I had not come across the pages of Kernelcrash[$^{1}$](#237cf410-ca37-4007-b729-295f447730b5), who inspired me with his projects and from which FC is based. Some parts of his code are used in my project without changes. I thank KernelCrash for not keeping his knowledge to himself, and for allowing me to draw on his experience. Therefore, I am also making this project available to others.
+Flexi card (hereinafter FC) would probably never have been created if I had not come across the pages of Kernelcrash[^1], who inspired me with his projects and from which FC is based. Some parts of his code are used in my project without changes. I thank KernelCrash for not keeping his knowledge to himself, and for allowing me to draw on his experience. Therefore, I am also making this project available to others.
 
 
 
@@ -14,7 +14,7 @@ Hardware
 --------
 
 
-FC uses a Chinese development board DevEBox.[$^{2}$](#6f974547-7f77-4b5d-845f-ee758f051c7c) The advantages of this board are its small size, low price[$^{3}$](#3f9cb66a-6147-47a4-88ec-82f978abba80), the presence of a slot for a micro SD card. It has a large number of IO ports and, most importantly, and this is also the reason for choosing this processor, that most of its GPIO ports are 5V tolerant, which is essential for cooperation with TTL logic. It is also very easy to flash and contains a debug port. The heart of this board is the STM32F407 processor from the Arm Cortex-M4 family2. Specifically, the VET6 variant, which has 512 KB of Flash memory3. It goes without saying that the use of a development board is not essential for the project, if you are able to design your own PCB with a minimal circuitry of the processor plus the necessary components for the operation of the SD card. I chose a development board, which is more convenient for prototyping and contains everything necessary.
+FC uses a Chinese development board DevEBox.[^2] The advantages of this board are its small size, low price[^3], the presence of a slot for a micro SD card. It has a large number of IO ports and, most importantly, and this is also the reason for choosing this processor, that most of its GPIO ports are 5V tolerant, which is essential for cooperation with TTL logic. It is also very easy to flash and contains a debug port. The heart of this board is the STM32F407 processor from the Arm Cortex-M4 family2. Specifically, the VET6 variant, which has 512 KB of Flash memory3. It goes without saying that the use of a development board is not essential for the project, if you are able to design your own PCB with a minimal circuitry of the processor plus the necessary components for the operation of the SD card. I chose a development board, which is more convenient for prototyping and contains everything necessary.
 
 
 
@@ -86,7 +86,7 @@ After reset or power on, the FC tests for the presence of the SD card. If the **
 If any of this testing fails, FC goes into **Basic – F + 32kB RAM** and the SD card is not used.
 
 The program has a time-critical part written in arm assembler. This is the MREQ handler,  
-where we emulate RAM and ROM. The rest is written in C, which is easier to write, although I personally don't like it, so please excuse any nonsense in the code. That being said, without the SD card, the FC behaves like a 64KBF DIY card (I may redo it in the future to a slightly different mode), which in the modified Sord[$^{4}$](#98bcd0bc-a686-4694-a492-84c7726f18b8) allows you to reach up to 64kB of RAM by disabling the MONITOR ROM and the cartridge. In the unmodified Sord, of course, only 32kB. **To prevent damage to the unmodified Sord, there is a ROM0 jumper on the FC which, when disconnected, prevents control of the ROM0 signal used to disable MONITOR ROM.** The memory modes are controlled via port 30h as follows:
+where we emulate RAM and ROM. The rest is written in C, which is easier to write, although I personally don't like it, so please excuse any nonsense in the code. That being said, without the SD card, the FC behaves like a 64KBF DIY card (I may redo it in the future to a slightly different mode), which in the modified Sord[^4] allows you to reach up to 64kB of RAM by disabling the MONITOR ROM and the cartridge. In the unmodified Sord, of course, only 32kB. **To prevent damage to the unmodified Sord, there is a ROM0 jumper on the FC which, when disconnected, prevents control of the ROM0 signal used to disable MONITOR ROM.** The memory modes are controlled via port 30h as follows:
 
 
 
@@ -120,7 +120,7 @@ CAS programs are loaded into the emulated address space. **Only one part CAS in 
 
 Another task of the main loop is to test the RST signal. If its activity is detected, the duration of the press is recorded. If it is shorter than about 3s, only Sord is reset (FC does not react). If it is longer, FC is also reset. Another way to reset FC independently of Sord is to use the RST button under the SD slot.
 
-For communication of FC with SD card, the open source library FatFs is used.[$^{5}$](#0346821f-1b2a-4d56-8d0f-ba2980fcffab)
+For communication of FC with SD card, the open source library FatFs is used.[^5]
 
 
 
@@ -140,7 +140,7 @@ sudo apt install gdb-multiarch
 
 
 Next, you will need the firmware package for the STM32F4DISCOVERY board from st.com.  
-It is called STSW-STM320686[$^{6}$](#75b0f978-852f-4029-a8ae-65b36f27f23e), unzip it somewhere and set this directory in the Makefile in the STM\_COMMON variable.
+It is called STSW-STM320686[^6], unzip it somewhere and set this directory in the Makefile in the STM\_COMMON variable.
 
 Then you will need the Basic-F rom, copy it to the roms directory, rename it to basic-f.rom. If you want to run MSX, you will also need msx.rom. Once you have everything together, follow these steps to start the compilation.
 
@@ -152,7 +152,7 @@ make
 ```
 
 
-To compile **menu.rom** you will need the z80 cross compiler. I use **pasmo**[$^{7}$](#dc321bc3-f751-4953-b8ce-93c8af2553be)which you can install using
+To compile **menu.rom** you will need the z80 cross compiler. I use **pasmo**[^7]which you can install using
 
  
 
@@ -172,10 +172,10 @@ make menu
 Firmware flashing
 -----------------
 
--	There are basically two ways to flash. Either via the built-in USB port in **DFU** mode, which you switch the card to by switching the BOOT0 pin from GND to 3V3. Then you connect to your computer and flash using the **_dfu-util_**[$^{8}$](#dc838e96-8291-4d2e-ab2b-d726de57b084) on Linux with the `make flash-dfu` command, or using the **DfuSe Demo** for Windows. In this case you will need your compiled code in dfu format. To create the dfu format you can use this utility: **hex2dfu**[$^{9}$](#9ea96f25-9549-4000-9280-04f055dbd7dd).
+-	There are basically two ways to flash. Either via the built-in USB port in **DFU** mode, which you switch the card to by switching the BOOT0 pin from GND to 3V3. Then you connect to your computer and flash using the **_dfu-util_**[^8] on Linux with the `make flash-dfu` command, or using the **DfuSe Demo** for Windows. In this case you will need your compiled code in dfu format. To create the dfu format you can use this utility: **hex2dfu**[^9].
 
 
-- The second way requires the STLINK programmer. In this case you don't need to switch BOOT0 at all, the programmer will do everything by itself. I used the Linux program **_st-flash_**[$^{10}$](#fa57c5ce-5e63-48af-8f8e-78d71ab85a26)which you will run by command `make flash`.
+- The second way requires the STLINK programmer. In this case you don't need to switch BOOT0 at all, the programmer will do everything by itself. I used the Linux program **_st-flash_**[^10]which you will run by command `make flash`.
 
 
 
@@ -241,16 +241,16 @@ There are many ways to use the potential of the STM board, so there is room for 
 
 * * *
 
-1.  [www.kernelcrash.com](https://www.Kernelcrash.com) [↩︎](#237cf410-ca37-4007-b729-295f447730b5-link)
-2.  [https://stm32-base.org/boards/STM32F407VET6-STM32F4XX-M](https://stm32-base.org/boards/STM32F407VET6-STM32F4XX-M) [↩︎](#6f974547-7f77-4b5d-845f-ee758f051c7c-link)
-3.  eg. [https://www.aliexpress.com/item/1005005124722843.html](https://www.aliexpress.com/item/1005005124722843.html) [↩︎](#3f9cb66a-6147-47a4-88ec-82f978abba80-link)
-4.  [https://dlabi.cz/programove-odepinani-monitor-rom-pro-sord-m5/](https://dlabi.cz/en/programove-odepinani-monitor-rom-pro-sord-m5/) [↩︎](#98bcd0bc-a686-4694-a492-84c7726f18b8-link)
-5.  [http://elm-chan.org/fsw/ff/](http://elm-chan.org/fsw/ff/) [↩︎](#0346821f-1b2a-4d56-8d0f-ba2980fcffab-link)
-6.  [https://www.st.com/en/embedded-software/stsw-stm32068.html](https://www.st.com/en/embedded-software/stsw-stm32068.html) [↩︎](#75b0f978-852f-4029-a8ae-65b36f27f23e-link)
-7.  [https://pasmo.speccy.org](https://pasmo.speccy.org) [↩︎](#dc321bc3-f751-4953-b8ce-93c8af2553be-link)
-8.  sudo apt install dfu-utils [↩︎](#dc838e96-8291-4d2e-ab2b-d726de57b084-link)
-9.  [https://github.com/encedo/hex2dfu](https://github.com/encedo/hex2dfu) [↩︎](#9ea96f25-9549-4000-9280-04f055dbd7dd-link)
-10.  sudo apt install stlink-tools [↩︎](#fa57c5ce-5e63-48af-8f8e-78d71ab85a26-link)
+[^1]: [www.kernelcrash.com](https://www.Kernelcrash.com)
+[^2]: [https://stm32-base.org/boards/STM32F407VET6-STM32F4XX-M](https://stm32-base.org/boards/STM32F407VET6-STM32F4XX-M)
+[^3]: eg. [https://www.aliexpress.com/item/1005005124722843.html](https://www.aliexpress.com/item/1005005124722843.html)
+[^4]: [https://dlabi.cz/programove-odepinani-monitor-rom-pro-sord-m5/](https://dlabi.cz/en/programove-odepinani-monitor-rom-pro-sord-m5/)
+[^5]: [http://elm-chan.org/fsw/ff/](http://elm-chan.org/fsw/ff/)
+[^6]: [https://www.st.com/en/embedded-software/stsw-stm32068.html](https://www.st.com/en/embedded-software/stsw-stm32068.html)
+[^7]: [https://pasmo.speccy.org](https://pasmo.speccy.org)
+[^8]: sudo apt install dfu-utils
+[^9]: [https://github.com/encedo/hex2dfu](https://github.com/encedo/hex2dfu)
+[^10]: sudo apt install stlink-tools
 
   
 
