@@ -192,7 +192,7 @@ Place **menu.rom** and optionally **debug.cas** in the root of the card. Cre
 
 
 
-The menu prints `ERROR LOADING ROM xx` with the hexadecimal FatFs result: `01` disk I/O failure, `02` incomplete read/internal error, `04` missing file, `05` missing path, `13` invalid or unsupported image, and `FF` wait timeout.
+For loading error codes, see [Debugging](#debugging).
 
 
 
@@ -227,6 +227,33 @@ Well, it depends on where you want to make the board. I used [PCB Prototype & PC
 
 Debugging
 ---------
+
+The menu prints `ERROR LOADING ROM XX`, where `XX` is a hexadecimal error code. `01` through `13` are FatFs result codes; `FF` is the menu's own wait timeout.
+
+| Code | Meaning |
+|------|---------|
+| `01` | SD card read / disk I/O error |
+| `02` | Internal error or incomplete file data |
+| `03` | SD card / physical drive not ready |
+| `04` | File not found |
+| `05` | Directory / path not found |
+| `06` | Invalid file name |
+| `07` | Access denied |
+| `08` | File already exists |
+| `09` | Invalid file / directory object |
+| `0A` | Write-protected media |
+| `0B` | Invalid drive number |
+| `0C` | Volume has no assigned filesystem work area |
+| `0D` | No valid FAT filesystem found |
+| `0E` | Formatting aborted |
+| `0F` | Timeout waiting for filesystem access |
+| `10` | File locked by the file-sharing policy |
+| `11` | Insufficient memory for the long-file-name buffer |
+| `12` | Too many open files |
+| `13` | Invalid parameter or unsupported image format |
+| `FF` | Menu timed out waiting for loading to finish |
+
+Some codes are general FatFs results and are not normally encountered when reading files. The loader also uses `02` for incomplete reads or missing CAS payload data, and `13` for invalid image headers or sizes, unsupported extensions, invalid load addresses, or an entry point outside the loaded data. See [image validation](src/images.c) and [loader checks](src/loader.c).
 
 Formatted I/O is avoided in the loader and SWO logging: prebuilt hard-float newlib can overwrite the live bus registers even for string-only formats. [The final ELF check](tools/check_reserved_fpu.py) rejects FPU instructions outside the owning bus assembly; compiler register-reservation flags alone do not protect prebuilt libraries.
 
