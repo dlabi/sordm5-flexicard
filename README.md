@@ -88,6 +88,7 @@ If any of this testing fails, FC goes into **Basic – F + 32kB RAM** and the SD
 The program has a time-critical part written in arm assembler. This is the MREQ handler,  
 where we emulate RAM and ROM. The rest is written in C, which is easier to write, although I personally don't like it, so please excuse any nonsense in the code. That being said, without the SD card, the FC behaves like a 64KBF DIY card (I may redo it in the future to a slightly different mode), which in the modified Sord[^4] allows you to reach up to 64kB of RAM by disabling the MONITOR ROM and the cartridge. In the unmodified Sord, of course, only 32kB. **To prevent damage to the unmodified Sord, there is a ROM0 jumper on the FC which, when disconnected, prevents control of the ROM0 signal used to disable MONITOR ROM.** The memory modes are controlled via port 30h as follows:
 
+<img width="768" height="952" alt="image" src="https://github.com/user-attachments/assets/a784fe83-ae45-4a2e-9636-905d11c24bdc" />
 
 
 If a falling edge is detected on MREQ, an interrupt is generated, in which it is determined by reading the MWR and MRD signals whether it is a read or write to RAM or ROM memory. The time required to start the interrupt service routine is about 83nS and lasts ~583nS at the maximum processor frequency.  
